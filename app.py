@@ -87,6 +87,11 @@ def get_robot_viewer_html(robot_name, command=None):
     main_color = color_map.get(robot_name, 0x3388ff)
     accent = main_color + 0x444444 if main_color < 0xcccccc else 0xeeeeee
 
+    # Determine command and animation type
+    cmd_lower = command.lower() if command else "idle"
+    valid_commands = ['walk', 'run', 'jump', 'wave', 'backflip']
+    anim_cmd = cmd_lower if cmd_lower in valid_commands else 'idle'
+
     html_template = """
     <!DOCTYPE html>
     <html>
@@ -287,13 +292,12 @@ def get_robot_viewer_html(robot_name, command=None):
             scene.add(robot);
             
             // ---- Animation State ----
-            let animCommand = 'COMMAND_ANIM';
+            const animCommand = 'ANIM_CMD';
             let animTime = 0;
             let isAnimating = false;
-            let animDuration = 2.0;
-            let walkCycle = 0;
             let loopAnimation = false;
-            let animationStarted = false;
+            let walkCycle = 0;
+            let hasStarted = false;
             
             function resetRobot() {
                 armGroupL.rotation.x = 0;
@@ -314,41 +318,35 @@ def get_robot_viewer_html(robot_name, command=None):
             
             function startCommand(cmd) {
                 resetRobot();
-                animCommand = cmd;
                 animTime = 0;
                 isAnimating = true;
                 loopAnimation = false;
-                animationStarted = true;
+                hasStarted = true;
                 switch(cmd) {
                     case 'walk':
-                        animDuration = 1.0;
                         loopAnimation = true;
                         break;
                     case 'run':
-                        animDuration = 0.6;
                         loopAnimation = true;
                         break;
                     case 'jump':
-                        animDuration = 1.2;
                         loopAnimation = false;
                         break;
                     case 'wave':
-                        animDuration = 2.0;
                         loopAnimation = false;
                         break;
                     case 'backflip':
-                        animDuration = 1.5;
                         loopAnimation = false;
                         break;
                     default:
                         isAnimating = false;
-                        animationStarted = false;
+                        hasStarted = false;
                         break;
                 }
             }
             
-            const validCommands = ['walk','run','jump','wave','backflip'];
-            if (validCommands.includes(animCommand)) {
+            const valid = ['walk','run','jump','wave','backflip'];
+            if (valid.includes(animCommand)) {
                 startCommand(animCommand);
             } else {
                 resetRobot();
@@ -356,17 +354,18 @@ def get_robot_viewer_html(robot_name, command=None):
             
             // ---- Animation Loop ----
             const clock = new THREE.Clock();
+            let animDuration = 1.2; // will be overridden per command
             
             function animate() {
                 requestAnimationFrame(animate);
                 const delta = clock.getDelta();
                 const time = clock.getElapsedTime();
                 
-                if (isAnimating && animationStarted) {
+                if (isAnimating && hasStarted) {
                     animTime += delta;
-                    let progress = animTime / animDuration;
+                    
                     if (loopAnimation) {
-                        // For walk/run, we use the time to produce a continuous swing
+                        // Walk / Run – continuous
                         const speed = animCommand === 'walk' ? 1.0 : 2.0;
                         walkCycle += delta * speed * 2.5;
                         const swing = Math.sin(walkCycle) * 0.5;
@@ -375,33 +374,40 @@ def get_robot_viewer_html(robot_name, command=None):
                         armGroupL.rotation.x = -swing * 0.8;
                         armGroupR.rotation.x = swing * 0.8;
                         robot.position.y = Math.abs(Math.sin(walkCycle)) * 0.05;
-                        // Keep animating indefinitely
+                        // Keep going indefinitely
                     } else {
                         // One-shot animations
+                        let duration = 1.2;
+                        switch(animCommand) {
+                            case 'jump': duration = 1.2; break;
+                            case 'wave': duration = 2.0; break;
+                            case 'backflip': duration = 1.5; break;
+                        }
+                        const progress = Math.min(animTime / duration, 1);
                         if (progress >= 1) {
+                            // End animation
                             isAnimating = false;
                             resetRobot();
-                            // For wave, we might want to keep the last pose for a moment, but reset is fine
                         } else {
                             const t = progress < 0.5 ? 2*progress*progress : 1 - Math.pow(-2*progress+2, 2)/2;
-                            switch (animCommand) {
+                            switch(animCommand) {
                                 case 'jump':
-                                    const jumpProg = progress < 0.5 ? 2*progress : 2*(1-progress);
-                                    robot.position.y = jumpProg * 0.6;
+                                    const jumpHeight = t < 0.5 ? t*2 : 2*(1-t);
+                                    robot.position.y = jumpHeight * 0.6;
                                     armGroupL.rotation.x = -1.2 * (1 - Math.abs(progress-0.5)*2);
                                     armGroupR.rotation.x = -1.2 * (1 - Math.abs(progress-0.5)*2);
                                     legGroupL.rotation.x = 0.3 * (1 - Math.abs(progress-0.5)*2);
                                     legGroupR.rotation.x = 0.3 * (1 - Math.abs(progress-0.5)*2);
                                     break;
                                 case 'wave':
-                                    const waveAngle = Math.sin(time * 4) * 0.8;
-                                    armGroupR.rotation.x = -0.8 + waveAngle * 0.5;
+                                    // Raise right arm and wave
+                                    armGroupR.rotation.x = -1.2 + Math.sin(time * 6) * 0.5;
                                     armGroupR.rotation.z = 0.5;
                                     headGroup.rotation.y = 0.4;
                                     break;
                                 case 'backflip':
-                                    const backflipAngle = t * Math.PI * 2;
-                                    robot.rotation.x = backflipAngle;
+                                    const angle = t * Math.PI * 2;
+                                    robot.rotation.x = angle;
                                     armGroupL.rotation.x = -0.5;
                                     armGroupR.rotation.x = -0.5;
                                     legGroupL.rotation.x = 0.3;
@@ -431,7 +437,7 @@ def get_robot_viewer_html(robot_name, command=None):
     """
     html = html_template.replace('ROBOT_NAME', robot_name)
     html = html.replace('COMMAND', command if command else 'Idle')
-    html = html.replace('COMMAND_ANIM', command.lower() if command else 'idle')
+    html = html.replace('ANIM_CMD', anim_cmd)
     html = html.replace('MAIN_COLOR', str(main_color))
     html = html.replace('ACCENT_COLOR', str(accent))
     return html
@@ -517,8 +523,10 @@ col_view, col_info = st.columns([3, 1])
 
 with col_view:
     st.markdown("### 🖥️ Robot View")
+    # Use a unique key based on command to force re‑mount
+    viewer_key = f"robot_viewer_{st.session_state.command}_{st.session_state.robot_selected}"
     viewer_html = get_robot_viewer_html(st.session_state.robot_selected, st.session_state.command)
-    st.components.v1.html(viewer_html, height=650, scrolling=False)
+    st.components.v1.html(viewer_html, height=650, scrolling=False, key=viewer_key)
 
 with col_info:
     st.markdown("### 📊 Command History")
