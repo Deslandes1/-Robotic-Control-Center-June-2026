@@ -121,60 +121,16 @@ ROBOTS = {
     "Silver Ghost": {"color": "#cccccc", "accent": "#eeeeee", "description": "Advanced prototype with unknown capabilities."}
 }
 
-# ---- 10 Katas ----
-KATAS = {
-    "Taikyoku Shodan": {"kimono": "#f0f0f0", "belt": "#ffffff", "headband": "#ff0000", "belt_rank": "White"},
-    "Heian Shodan": {"kimono": "#f0f0f0", "belt": "#ffff00", "headband": "#0000ff", "belt_rank": "Yellow"},
-    "Heian Nidan": {"kimono": "#f0f0f0", "belt": "#ffa500", "headband": "#00ff00", "belt_rank": "Orange"},
-    "Heian Sandan": {"kimono": "#f0f0f0", "belt": "#00ff00", "headband": "#ffff00", "belt_rank": "Green"},
-    "Heian Yondan": {"kimono": "#f0f0f0", "belt": "#800080", "headband": "#ffa500", "belt_rank": "Purple"},
-    "Heian Godan": {"kimono": "#f0f0f0", "belt": "#8b4513", "headband": "#800080", "belt_rank": "Brown"},
-    "Tekki Shodan": {"kimono": "#0000ff", "belt": "#8b4513", "headband": "#ff0000", "belt_rank": "Brown"},
-    "Bassai Dai": {"kimono": "#0000ff", "belt": "#000000", "headband": "#ffffff", "belt_rank": "Black"},
-    "Kanku Dai": {"kimono": "#000000", "belt": "#000000", "headband": "#ffd700", "belt_rank": "Black"},
-    "Gojushiho": {"kimono": "#000000", "belt": "#000000", "headband": "#c0c0c0", "belt_rank": "Black"}
-}
-
-def get_kata_sequence(kata_name):
-    base = [["bow", 2.0], ["walk", 3.0], ["jump", 1.2], ["wave", 2.0], ["backflip", 1.5], ["walk", 3.0], ["bow", 2.0]]
-    variations = {
-        "Taikyoku Shodan": [["idle", 1.0]] + base,
-        "Heian Shodan": base + [["idle", 1.0]],
-        "Heian Nidan": [["walk", 2.0], ["run", 2.0]] + base[2:],
-        "Heian Sandan": base[:3] + [["run", 2.0]] + base[3:],
-        "Heian Yondan": base[:4] + [["idle", 1.0]] + base[4:],
-        "Heian Godan": base[:2] + [["jump", 1.2], ["walk", 2.0]] + base[3:],
-        "Tekki Shodan": [["bow", 2.0], ["idle", 2.0]] + base[2:],
-        "Bassai Dai": base + [["idle", 2.0]],
-        "Kanku Dai": [["walk", 4.0], ["jump", 1.2], ["wave", 2.0], ["backflip", 1.5], ["walk", 4.0]],
-        "Gojushiho": [["bow", 3.0], ["walk", 3.0], ["run", 3.0], ["jump", 1.2], ["backflip", 1.5], ["wave", 2.0], ["bow", 2.0]]
-    }
-    return variations.get(kata_name, base)
-
-def get_robot_viewer_html(robot_name, command=None, kata_name=None):
+def get_robot_viewer_html(robot_name, command=None):
     color_map = {"Red Titan": 0xff3333, "Blue Sentinel": 0x3388ff, "Green Viper": 0x33cc66, "Gold Phoenix": 0xffaa00, "Silver Ghost": 0xcccccc}
     main_color = color_map.get(robot_name, 0x3388ff)
     accent = main_color + 0x444444 if main_color < 0xcccccc else 0xeeeeee
-
-    is_kata = kata_name is not None
-    kata_info = KATAS.get(kata_name, None)
-    if is_kata and kata_info:
-        kimono_color = int(kata_info["kimono"].lstrip("#"), 16)
-        belt_color = int(kata_info["belt"].lstrip("#"), 16)
-        headband_color = int(kata_info["headband"].lstrip("#"), 16)
-    else:
-        kimono_color = main_color
-        belt_color = main_color
-        headband_color = main_color
 
     cmd_lower = command.lower() if command else "idle"
     valid_commands = ['walk', 'run', 'jump', 'wave', 'backflip']
     anim_cmd = cmd_lower if cmd_lower in valid_commands else 'idle'
 
-    kata_sequence = get_kata_sequence(kata_name) if is_kata else []
-    kata_sequence_json = json.dumps(kata_sequence)
-
-    # SIMPLEST POSSIBLE HTML: no importmap, plain script tags, fixed canvas size
+    # Simplified HTML with importmap (works reliably)
     html_template = """
     <!DOCTYPE html>
     <html>
@@ -182,387 +138,329 @@ def get_robot_viewer_html(robot_name, command=None, kata_name=None):
         <meta charset="utf-8">
         <style>
             body { margin: 0; overflow: hidden; background: #0a0a0f; font-family: Arial; }
-            #canvas-container { width: 100%; height: 100%; display: block; }
+            #canvas-container { width: 100vw; height: 100vh; display: block; }
             #info { position: absolute; bottom: 20px; left: 20px; color: #8899bb; font-size: 14px; pointer-events: none; z-index: 10; }
         </style>
     </head>
     <body>
-        <div id="canvas-container" style="width:100%; height:100%;"></div>
+        <div id="canvas-container"></div>
         <div id="info">🤖 ROBOT_NAME | Command: COMMAND</div>
         
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-        <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+        <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+        </script>
         
-        <script>
-            (function() {
-                var container = document.getElementById('canvas-container');
-                
-                if (typeof THREE === 'undefined') {
-                    container.innerHTML = '<div style="color:#ff6b6b; text-align:center; padding-top:40%; font-size:20px;">⚠️ 3D engine failed to load. Please refresh.</div>';
-                    return;
+        <script type="module">
+            import * as THREE from 'three';
+            import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+            
+            const container = document.getElementById('canvas-container');
+            const scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a0a0f);
+            
+            const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 100);
+            camera.position.set(3, 2, 4);
+            camera.lookAt(0, 0.8, 0);
+            
+            const renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.2;
+            container.appendChild(renderer.domElement);
+            
+            const controls = new OrbitControls(camera, renderer.domElement);
+            controls.target.set(0, 0.8, 0);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.minDistance = 2;
+            controls.maxDistance = 10;
+            controls.update();
+            
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0x404060);
+            scene.add(ambientLight);
+            const mainLight = new THREE.DirectionalLight(0xffffff, 1.5);
+            mainLight.position.set(4, 6, 5);
+            mainLight.castShadow = true;
+            scene.add(mainLight);
+            const fillLight = new THREE.DirectionalLight(0x4488ff, 0.5);
+            fillLight.position.set(-3, 1, 4);
+            scene.add(fillLight);
+            const rimLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            rimLight.position.set(0, 2, -5);
+            scene.add(rimLight);
+            
+            const gridHelper = new THREE.GridHelper(5, 10, 0x445566, 0x223344);
+            gridHelper.position.y = -0.01;
+            scene.add(gridHelper);
+            
+            // ---- Robot Construction ----
+            const COLOR = MAIN_COLOR;
+            const ACCENT = ACCENT_COLOR;
+            
+            const robot = new THREE.Group();
+            
+            // Torso
+            const torsoGeo = new THREE.BoxGeometry(0.9, 1.0, 0.6);
+            const torsoMat = new THREE.MeshStandardMaterial({ color: COLOR, roughness: 0.3, metalness: 0.7 });
+            const torso = new THREE.Mesh(torsoGeo, torsoMat);
+            torso.position.y = 0.9;
+            torso.castShadow = true;
+            robot.add(torso);
+            
+            // Chest detail
+            const chestGeo = new THREE.BoxGeometry(0.6, 0.3, 0.1);
+            const chestMat = new THREE.MeshStandardMaterial({ color: ACCENT, roughness: 0.4, metalness: 0.8 });
+            const chest = new THREE.Mesh(chestGeo, chestMat);
+            chest.position.set(0, 1.0, 0.35);
+            robot.add(chest);
+            
+            // Head
+            const headGroup = new THREE.Group();
+            const headGeo = new THREE.BoxGeometry(0.5, 0.45, 0.45);
+            const headMat = new THREE.MeshStandardMaterial({ color: 0xaaaaaa, roughness: 0.3, metalness: 0.5 });
+            const head = new THREE.Mesh(headGeo, headMat);
+            head.position.y = 0.15;
+            head.castShadow = true;
+            headGroup.add(head);
+            
+            // Visor
+            const visorGeo = new THREE.BoxGeometry(0.35, 0.12, 0.05);
+            const visorMat = new THREE.MeshStandardMaterial({ color: 0x00ddff, emissive: 0x00bbff, emissiveIntensity: 0.8 });
+            const visor = new THREE.Mesh(visorGeo, visorMat);
+            visor.position.set(0, 0.15, 0.25);
+            headGroup.add(visor);
+            
+            // Antenna
+            const antennaMat = new THREE.MeshStandardMaterial({ color: 0xffaa00, emissive: 0xff8800, emissiveIntensity: 0.3 });
+            const antenna = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.2), antennaMat);
+            antenna.position.set(0, 0.45, 0);
+            headGroup.add(antenna);
+            const antennaBall = new THREE.Mesh(new THREE.SphereGeometry(0.05), antennaMat);
+            antennaBall.position.set(0, 0.55, 0);
+            headGroup.add(antennaBall);
+            
+            headGroup.position.set(0, 1.4, 0);
+            robot.add(headGroup);
+            
+            // Shoulders
+            const shoulderMat = new THREE.MeshStandardMaterial({ color: COLOR, roughness: 0.4, metalness: 0.6 });
+            const shoulderL = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 8), shoulderMat);
+            shoulderL.position.set(-0.6, 1.2, 0);
+            robot.add(shoulderL);
+            const shoulderR = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 8), shoulderMat);
+            shoulderR.position.set(0.6, 1.2, 0);
+            robot.add(shoulderR);
+            
+            // Arms
+            const armGroupL = new THREE.Group();
+            const armGroupR = new THREE.Group();
+            const upperArmMat = new THREE.MeshStandardMaterial({ color: COLOR, roughness: 0.3, metalness: 0.7 });
+            const lowerArmMat = new THREE.MeshStandardMaterial({ color: ACCENT, roughness: 0.4, metalness: 0.6 });
+            
+            // Left arm
+            const upperL = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.5, 0.2), upperArmMat);
+            upperL.position.y = -0.25;
+            armGroupL.add(upperL);
+            const lowerL = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.5, 0.18), lowerArmMat);
+            lowerL.position.y = -0.6;
+            armGroupL.add(lowerL);
+            const handMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.8, roughness: 0.2 });
+            const handL = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.15, 0.15), handMat);
+            handL.position.y = -0.85;
+            armGroupL.add(handL);
+            armGroupL.position.set(-0.6, 1.2, 0);
+            robot.add(armGroupL);
+            
+            // Right arm
+            const upperR = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.5, 0.2), upperArmMat);
+            upperR.position.y = -0.25;
+            armGroupR.add(upperR);
+            const lowerR = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.5, 0.18), lowerArmMat);
+            lowerR.position.y = -0.6;
+            armGroupR.add(lowerR);
+            const handR = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.15, 0.15), handMat);
+            handR.position.y = -0.85;
+            armGroupR.add(handR);
+            armGroupR.position.set(0.6, 1.2, 0);
+            robot.add(armGroupR);
+            
+            // Legs
+            const legGroupL = new THREE.Group();
+            const legGroupR = new THREE.Group();
+            const upperLegMat = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.5, metalness: 0.4 });
+            const lowerLegMat = new THREE.MeshStandardMaterial({ color: 0x777777, roughness: 0.5, metalness: 0.3 });
+            
+            // Left leg
+            const upperLegL = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.45, 0.25), upperLegMat);
+            upperLegL.position.y = -0.225;
+            legGroupL.add(upperLegL);
+            const lowerLegL = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.45, 0.22), lowerLegMat);
+            lowerLegL.position.y = -0.55;
+            legGroupL.add(lowerLegL);
+            const footMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.6, metalness: 0.2 });
+            const footL = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.1, 0.4), footMat);
+            footL.position.set(0, -0.8, 0.05);
+            legGroupL.add(footL);
+            legGroupL.position.set(-0.3, 0.4, 0);
+            robot.add(legGroupL);
+            
+            // Right leg
+            const upperLegR = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.45, 0.25), upperLegMat);
+            upperLegR.position.y = -0.225;
+            legGroupR.add(upperLegR);
+            const lowerLegR = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.45, 0.22), lowerLegMat);
+            lowerLegR.position.y = -0.55;
+            legGroupR.add(lowerLegR);
+            const footR = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.1, 0.4), footMat);
+            footR.position.set(0, -0.8, 0.05);
+            legGroupR.add(footR);
+            legGroupR.position.set(0.3, 0.4, 0);
+            robot.add(legGroupR);
+            
+            scene.add(robot);
+            
+            // ---- Animation State ----
+            const animCommand = 'ANIM_CMD';
+            let animTime = 0;
+            let isAnimating = false;
+            let loopAnimation = false;
+            let walkCycle = 0;
+            let hasStarted = false;
+            
+            function resetRobot() {
+                armGroupL.rotation.x = 0; armGroupL.rotation.z = 0;
+                armGroupR.rotation.x = 0; armGroupR.rotation.z = 0;
+                legGroupL.rotation.x = 0; legGroupL.rotation.z = 0;
+                legGroupR.rotation.x = 0; legGroupR.rotation.z = 0;
+                robot.position.y = 0; robot.rotation.x = 0; robot.rotation.z = 0;
+                headGroup.rotation.x = 0; headGroup.rotation.y = 0;
+                walkCycle = 0; controls.target.set(0, 0.8, 0);
+            }
+            
+            function startCommand(cmd) {
+                resetRobot();
+                animTime = 0;
+                isAnimating = true;
+                loopAnimation = false;
+                hasStarted = true;
+                switch(cmd) {
+                    case 'walk':
+                        loopAnimation = true;
+                        break;
+                    case 'run':
+                        loopAnimation = true;
+                        break;
+                    case 'jump':
+                        loopAnimation = false;
+                        break;
+                    case 'wave':
+                        loopAnimation = false;
+                        break;
+                    case 'backflip':
+                        loopAnimation = false;
+                        break;
+                    default:
+                        isAnimating = false;
+                        hasStarted = false;
+                        break;
                 }
+            }
+            
+            const valid = ['walk','run','jump','wave','backflip'];
+            if (valid.includes(animCommand)) {
+                startCommand(animCommand);
+            } else {
+                resetRobot();
+            }
+            
+            // ---- Animation Loop ----
+            const clock = new THREE.Clock();
+            
+            function animate() {
+                requestAnimationFrame(animate);
+                const delta = clock.getDelta();
+                const time = clock.getElapsedTime();
                 
-                var scene = new THREE.Scene();
-                scene.background = new THREE.Color(0x0a0a0f);
-                
-                var camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 100);
-                camera.position.set(3, 2, 4);
-                camera.lookAt(0, 0.8, 0);
-                
-                var renderer = new THREE.WebGLRenderer({ antialias: true });
-                renderer.setSize(container.clientWidth, container.clientHeight);
-                renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-                renderer.shadowMap.enabled = true;
-                renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-                renderer.toneMapping = THREE.ACESFilmicToneMapping;
-                renderer.toneMappingExposure = 1.2;
-                container.appendChild(renderer.domElement);
-                
-                var controls = new THREE.OrbitControls(camera, renderer.domElement);
-                controls.target.set(0, 0.8, 0);
-                controls.enableDamping = true;
-                controls.dampingFactor = 0.05;
-                controls.minDistance = 2;
-                controls.maxDistance = 10;
-                controls.update();
-                
-                // Lighting
-                var ambientLight = new THREE.AmbientLight(0x404060);
-                scene.add(ambientLight);
-                var mainLight = new THREE.DirectionalLight(0xffffff, 1.5);
-                mainLight.position.set(4, 6, 5);
-                mainLight.castShadow = true;
-                scene.add(mainLight);
-                var fillLight = new THREE.DirectionalLight(0x4488ff, 0.5);
-                fillLight.position.set(-3, 1, 4);
-                scene.add(fillLight);
-                var rimLight = new THREE.DirectionalLight(0xffffff, 0.8);
-                rimLight.position.set(0, 2, -5);
-                scene.add(rimLight);
-                
-                var gridHelper = new THREE.GridHelper(5, 10, 0x445566, 0x223344);
-                gridHelper.position.y = -0.01;
-                scene.add(gridHelper);
-                
-                // ---- Robot Construction ----
-                var COLOR = MAIN_COLOR;
-                var ACCENT = ACCENT_COLOR;
-                var KIMONO = KIMONO_COLOR;
-                var BELT = BELT_COLOR;
-                var HEADBAND = HEADBAND_COLOR;
-                var IS_KATA = IS_KATA;
-                
-                var robot = new THREE.Group();
-                
-                // Torso
-                var torsoGeo = new THREE.BoxGeometry(0.9, 1.0, 0.6);
-                var torsoMat = new THREE.MeshStandardMaterial({ color: KIMONO, roughness: 0.3, metalness: 0.7 });
-                var torso = new THREE.Mesh(torsoGeo, torsoMat);
-                torso.position.y = 0.9;
-                torso.castShadow = true;
-                robot.add(torso);
-                
-                var chestGeo = new THREE.BoxGeometry(0.6, 0.3, 0.1);
-                var chestMat = new THREE.MeshStandardMaterial({ color: ACCENT, roughness: 0.4, metalness: 0.8 });
-                var chest = new THREE.Mesh(chestGeo, chestMat);
-                chest.position.set(0, 1.0, 0.35);
-                robot.add(chest);
-                
-                if (IS_KATA) {
-                    var beltGeo = new THREE.CylinderGeometry(0.55, 0.55, 0.12, 16);
-                    var beltMat = new THREE.MeshStandardMaterial({ color: BELT, roughness: 0.3, metalness: 0.2 });
-                    var belt = new THREE.Mesh(beltGeo, beltMat);
-                    belt.position.set(0, 0.45, 0);
-                    belt.rotation.x = Math.PI/2;
-                    robot.add(belt);
-                }
-                
-                var headGroup = new THREE.Group();
-                var headGeo = new THREE.BoxGeometry(0.5, 0.45, 0.45);
-                var headMat = new THREE.MeshStandardMaterial({ color: 0xaaaaaa, roughness: 0.3, metalness: 0.5 });
-                var head = new THREE.Mesh(headGeo, headMat);
-                head.position.y = 0.15;
-                head.castShadow = true;
-                headGroup.add(head);
-                
-                var visorGeo = new THREE.BoxGeometry(0.35, 0.12, 0.05);
-                var visorMat = new THREE.MeshStandardMaterial({ color: 0x00ddff, emissive: 0x00bbff, emissiveIntensity: 0.8 });
-                var visor = new THREE.Mesh(visorGeo, visorMat);
-                visor.position.set(0, 0.15, 0.25);
-                headGroup.add(visor);
-                
-                if (IS_KATA) {
-                    var headbandGeo = new THREE.TorusGeometry(0.28, 0.04, 8, 16);
-                    var headbandMat = new THREE.MeshStandardMaterial({ color: HEADBAND, roughness: 0.4, metalness: 0.3 });
-                    var headband = new THREE.Mesh(headbandGeo, headbandMat);
-                    headband.position.set(0, 0.15, 0);
-                    headband.rotation.x = Math.PI/2;
-                    headGroup.add(headband);
-                }
-                
-                var antennaMat = new THREE.MeshStandardMaterial({ color: 0xffaa00, emissive: 0xff8800, emissiveIntensity: 0.3 });
-                var antenna = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.2), antennaMat);
-                antenna.position.set(0, 0.45, 0);
-                headGroup.add(antenna);
-                var antennaBall = new THREE.Mesh(new THREE.SphereGeometry(0.05), antennaMat);
-                antennaBall.position.set(0, 0.55, 0);
-                headGroup.add(antennaBall);
-                
-                headGroup.position.set(0, 1.4, 0);
-                robot.add(headGroup);
-                
-                var shoulderMat = new THREE.MeshStandardMaterial({ color: KIMONO, roughness: 0.4, metalness: 0.6 });
-                var shoulderL = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 8), shoulderMat);
-                shoulderL.position.set(-0.6, 1.2, 0);
-                robot.add(shoulderL);
-                var shoulderR = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 8), shoulderMat);
-                shoulderR.position.set(0.6, 1.2, 0);
-                robot.add(shoulderR);
-                
-                var armGroupL = new THREE.Group();
-                var armGroupR = new THREE.Group();
-                var upperArmMat = new THREE.MeshStandardMaterial({ color: KIMONO, roughness: 0.3, metalness: 0.7 });
-                var lowerArmMat = new THREE.MeshStandardMaterial({ color: KIMONO, roughness: 0.4, metalness: 0.6 });
-                
-                var upperL = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.5, 0.2), upperArmMat);
-                upperL.position.y = -0.25;
-                armGroupL.add(upperL);
-                var lowerL = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.5, 0.18), lowerArmMat);
-                lowerL.position.y = -0.6;
-                armGroupL.add(lowerL);
-                var handMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.8, roughness: 0.2 });
-                var handL = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.15, 0.15), handMat);
-                handL.position.y = -0.85;
-                armGroupL.add(handL);
-                armGroupL.position.set(-0.6, 1.2, 0);
-                robot.add(armGroupL);
-                
-                var upperR = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.5, 0.2), upperArmMat);
-                upperR.position.y = -0.25;
-                armGroupR.add(upperR);
-                var lowerR = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.5, 0.18), lowerArmMat);
-                lowerR.position.y = -0.6;
-                armGroupR.add(lowerR);
-                var handR = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.15, 0.15), handMat);
-                handR.position.y = -0.85;
-                armGroupR.add(handR);
-                armGroupR.position.set(0.6, 1.2, 0);
-                robot.add(armGroupR);
-                
-                var legGroupL = new THREE.Group();
-                var legGroupR = new THREE.Group();
-                var upperLegMat = new THREE.MeshStandardMaterial({ color: KIMONO, roughness: 0.5, metalness: 0.4 });
-                var lowerLegMat = new THREE.MeshStandardMaterial({ color: KIMONO, roughness: 0.5, metalness: 0.3 });
-                
-                var upperLegL = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.45, 0.25), upperLegMat);
-                upperLegL.position.y = -0.225;
-                legGroupL.add(upperLegL);
-                var lowerLegL = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.45, 0.22), lowerLegMat);
-                lowerLegL.position.y = -0.55;
-                legGroupL.add(lowerLegL);
-                var footMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.6, metalness: 0.2 });
-                var footL = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.1, 0.4), footMat);
-                footL.position.set(0, -0.8, 0.05);
-                legGroupL.add(footL);
-                legGroupL.position.set(-0.3, 0.4, 0);
-                robot.add(legGroupL);
-                
-                var upperLegR = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.45, 0.25), upperLegMat);
-                upperLegR.position.y = -0.225;
-                legGroupR.add(upperLegR);
-                var lowerLegR = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.45, 0.22), lowerLegMat);
-                lowerLegR.position.y = -0.55;
-                legGroupR.add(lowerLegR);
-                var footR = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.1, 0.4), footMat);
-                footR.position.set(0, -0.8, 0.05);
-                legGroupR.add(footR);
-                legGroupR.position.set(0.3, 0.4, 0);
-                robot.add(legGroupR);
-                
-                scene.add(robot);
-                
-                // ---- Animation State ----
-                var animCommand = 'ANIM_CMD';
-                var animTime = 0;
-                var isAnimating = false;
-                var loopAnimation = false;
-                var walkCycle = 0;
-                var hasStarted = false;
-                var kataSequence = KATA_SEQUENCE;
-                var isKataRunning = false;
-                var kataActionIndex = 0;
-                var kataActionTime = 0;
-                var kataAction = null;
-                var kataComplete = false;
-                var bowActive = false;
-                var bowProgress = 0;
-                
-                function resetRobot() {
-                    armGroupL.rotation.x = 0; armGroupL.rotation.z = 0;
-                    armGroupR.rotation.x = 0; armGroupR.rotation.z = 0;
-                    legGroupL.rotation.x = 0; legGroupL.rotation.z = 0;
-                    legGroupR.rotation.x = 0; legGroupR.rotation.z = 0;
-                    robot.position.y = 0; robot.rotation.x = 0; robot.rotation.z = 0;
-                    headGroup.rotation.x = 0; headGroup.rotation.y = 0;
-                    walkCycle = 0; controls.target.set(0, 0.8, 0);
-                    bowActive = false; bowProgress = 0;
-                }
-                
-                function startKata() {
-                    if (kataSequence.length === 0) return;
-                    resetRobot();
-                    isKataRunning = true;
-                    kataActionIndex = 0; kataActionTime = 0; kataTotalTime = 0; kataComplete = false;
-                    startNextKataAction();
-                }
-                
-                function startNextKataAction() {
-                    if (kataActionIndex >= kataSequence.length) {
-                        isKataRunning = false; kataComplete = true; resetRobot(); return;
-                    }
-                    var action = kataSequence[kataActionIndex];
-                    kataAction = action; kataActionTime = 0;
-                    var type = action[0];
-                    if (type === 'walk' || type === 'run') {
-                        loopAnimation = true; isAnimating = true; hasStarted = true; animCommand = type;
-                    } else if (type === 'idle') {
-                        loopAnimation = false; isAnimating = false; hasStarted = false;
-                    } else {
-                        loopAnimation = false; isAnimating = true; hasStarted = true; animCommand = type;
-                        if (type === 'bow') { bowActive = true; bowProgress = 0; }
-                    }
-                }
-                
-                function updateKata(delta) {
-                    if (!isKataRunning || kataComplete) return;
-                    kataActionTime += delta; kataTotalTime += delta;
-                    var action = kataAction; if (!action) return;
-                    var type = action[0]; var duration = action[1];
-                    if (type === 'idle') {
-                        if (kataActionTime >= duration) { kataActionIndex++; startNextKataAction(); }
-                        return;
-                    }
-                    if (type === 'walk' || type === 'run') {
-                        if (kataActionTime >= duration) {
-                            isAnimating = false; loopAnimation = false; resetRobot();
-                            kataActionIndex++; startNextKataAction();
-                        }
-                        return;
-                    }
-                    if (type === 'jump' || type === 'wave' || type === 'backflip') {
-                        if (!isAnimating && hasStarted) {
-                            hasStarted = false; kataActionIndex++; startNextKataAction();
-                        }
-                        return;
-                    }
-                    if (type === 'bow') {
-                        bowProgress += delta / duration;
-                        if (bowProgress >= 1) {
-                            bowProgress = 1;
-                            if (kataActionTime >= duration + 0.2) {
-                                bowActive = false; resetRobot();
-                                kataActionIndex++; startNextKataAction();
-                                return;
-                            }
-                        }
-                        var t = bowProgress;
-                        var ease = t < 0.5 ? 2*t*t : 1 - Math.pow(-2*t+2, 2)/2;
-                        robot.rotation.x = ease * 0.4;
-                        armGroupL.rotation.x = -0.5 * ease;
-                        armGroupR.rotation.x = -0.5 * ease;
-                        controls.target.set(0, 0.8 - ease * 0.3, 0);
-                        return;
-                    }
-                }
-                
-                if (kataSequence.length > 0) { startKata(); } else {
-                    var valid = ['walk','run','jump','wave','backflip'];
-                    if (valid.indexOf(animCommand) !== -1) { startCommand(animCommand); } else { resetRobot(); }
-                }
-                
-                function startCommand(cmd) {
-                    resetRobot(); animTime = 0; isAnimating = true; loopAnimation = false; hasStarted = true;
-                    switch(cmd) {
-                        case 'walk': loopAnimation = true; break;
-                        case 'run': loopAnimation = true; break;
-                        case 'jump': loopAnimation = false; break;
-                        case 'wave': loopAnimation = false; break;
-                        case 'backflip': loopAnimation = false; break;
-                        default: isAnimating = false; hasStarted = false; break;
-                    }
-                }
-                
-                var clock = new THREE.Clock();
-                function animate() {
-                    requestAnimationFrame(animate);
-                    var delta = clock.getDelta();
-                    var time = clock.getElapsedTime();
+                if (isAnimating && hasStarted) {
+                    animTime += delta;
                     
-                    if (isKataRunning) { updateKata(delta); } else {
-                        if (isAnimating && hasStarted) {
-                            animTime += delta;
-                            if (loopAnimation) {
-                                var speed = animCommand === 'walk' ? 1.0 : 2.0;
-                                walkCycle += delta * speed * 2.5;
-                                var swing = Math.sin(walkCycle) * 0.5;
-                                legGroupL.rotation.x = swing; legGroupR.rotation.x = -swing;
-                                armGroupL.rotation.x = -swing * 0.8; armGroupR.rotation.x = swing * 0.8;
-                                robot.position.y = Math.abs(Math.sin(walkCycle)) * 0.05;
-                            } else {
-                                var duration = 1.2;
-                                switch(animCommand) {
-                                    case 'jump': duration = 1.2; break;
-                                    case 'wave': duration = 2.0; break;
-                                    case 'backflip': duration = 1.5; break;
-                                }
-                                var progress = Math.min(animTime / duration, 1);
-                                if (progress >= 1) { isAnimating = false; resetRobot(); } else {
-                                    var t = progress < 0.5 ? 2*progress*progress : 1 - Math.pow(-2*progress+2, 2)/2;
-                                    switch(animCommand) {
-                                        case 'jump':
-                                            var jumpHeight = t < 0.5 ? t*2 : 2*(1-t);
-                                            robot.position.y = jumpHeight * 0.6;
-                                            controls.target.set(0, robot.position.y + 0.8, 0);
-                                            armGroupL.rotation.x = -1.2 * (1 - Math.abs(progress-0.5)*2);
-                                            armGroupR.rotation.x = -1.2 * (1 - Math.abs(progress-0.5)*2);
-                                            legGroupL.rotation.x = 0.3 * (1 - Math.abs(progress-0.5)*2);
-                                            legGroupR.rotation.x = 0.3 * (1 - Math.abs(progress-0.5)*2);
-                                            break;
-                                        case 'wave':
-                                            armGroupR.rotation.x = -1.2 + Math.sin(time * 6) * 0.5;
-                                            armGroupR.rotation.z = 0.5;
-                                            headGroup.rotation.y = 0.4;
-                                            break;
-                                        case 'backflip':
-                                            var angle = -t * Math.PI * 2;
-                                            robot.rotation.x = angle;
-                                            var jumpHeight = t < 0.5 ? t * 2 * 1.2 : 2 * (1 - t) * 1.2;
-                                            robot.position.y = jumpHeight;
-                                            controls.target.set(0, jumpHeight + 0.8, 0);
-                                            armGroupL.rotation.x = -0.7;
-                                            armGroupR.rotation.x = -0.7;
-                                            legGroupL.rotation.x = 0.4;
-                                            legGroupR.rotation.x = 0.4;
-                                            break;
-                                    }
-                                }
+                    if (loopAnimation) {
+                        // Walk / Run – continuous
+                        const speed = animCommand === 'walk' ? 1.0 : 2.0;
+                        walkCycle += delta * speed * 2.5;
+                        const swing = Math.sin(walkCycle) * 0.5;
+                        legGroupL.rotation.x = swing;
+                        legGroupR.rotation.x = -swing;
+                        armGroupL.rotation.x = -swing * 0.8;
+                        armGroupR.rotation.x = swing * 0.8;
+                        robot.position.y = Math.abs(Math.sin(walkCycle)) * 0.05;
+                    } else {
+                        // One-shot animations
+                        let duration = 1.2;
+                        switch(animCommand) {
+                            case 'jump': duration = 1.2; break;
+                            case 'wave': duration = 2.0; break;
+                            case 'backflip': duration = 1.5; break;
+                        }
+                        const progress = Math.min(animTime / duration, 1);
+                        if (progress >= 1) {
+                            isAnimating = false;
+                            resetRobot();
+                        } else {
+                            const t = progress < 0.5 ? 2*progress*progress : 1 - Math.pow(-2*progress+2, 2)/2;
+                            switch(animCommand) {
+                                case 'jump':
+                                    const jumpHeight = t < 0.5 ? t*2 : 2*(1-t);
+                                    robot.position.y = jumpHeight * 0.6;
+                                    controls.target.set(0, robot.position.y + 0.8, 0);
+                                    armGroupL.rotation.x = -1.2 * (1 - Math.abs(progress-0.5)*2);
+                                    armGroupR.rotation.x = -1.2 * (1 - Math.abs(progress-0.5)*2);
+                                    legGroupL.rotation.x = 0.3 * (1 - Math.abs(progress-0.5)*2);
+                                    legGroupR.rotation.x = 0.3 * (1 - Math.abs(progress-0.5)*2);
+                                    break;
+                                case 'wave':
+                                    armGroupR.rotation.x = -1.2 + Math.sin(time * 6) * 0.5;
+                                    armGroupR.rotation.z = 0.5;
+                                    headGroup.rotation.y = 0.4;
+                                    break;
+                                case 'backflip':
+                                    const angle = -t * Math.PI * 2;
+                                    robot.rotation.x = angle;
+                                    const jumpHeight = t < 0.5 ? t * 2 * 1.2 : 2 * (1 - t) * 1.2;
+                                    robot.position.y = jumpHeight;
+                                    controls.target.set(0, jumpHeight + 0.8, 0);
+                                    armGroupL.rotation.x = -0.7;
+                                    armGroupR.rotation.x = -0.7;
+                                    legGroupL.rotation.x = 0.4;
+                                    legGroupR.rotation.x = 0.4;
+                                    break;
                             }
                         }
                     }
-                    controls.update();
-                    renderer.render(scene, camera);
                 }
-                animate();
                 
-                // ---- Resize ----
-                window.addEventListener('resize', function() {
-                    var w = container.clientWidth;
-                    var h = container.clientHeight;
-                    renderer.setSize(w, h);
-                    camera.aspect = w / h;
-                    camera.updateProjectionMatrix();
-                });
-            })();
+                controls.update();
+                renderer.render(scene, camera);
+            }
+            animate();
+            
+            // ---- Resize ----
+            window.addEventListener('resize', () => {
+                const w = container.clientWidth;
+                const h = container.clientHeight;
+                renderer.setSize(w, h);
+                camera.aspect = w / h;
+                camera.updateProjectionMatrix();
+            });
         </script>
     </body>
     </html>
@@ -572,11 +470,6 @@ def get_robot_viewer_html(robot_name, command=None, kata_name=None):
     html = html.replace('ANIM_CMD', anim_cmd)
     html = html.replace('MAIN_COLOR', str(main_color))
     html = html.replace('ACCENT_COLOR', str(accent))
-    html = html.replace('KIMONO_COLOR', str(kimono_color))
-    html = html.replace('BELT_COLOR', str(belt_color))
-    html = html.replace('HEADBAND_COLOR', str(headband_color))
-    html = html.replace('IS_KATA', 'true' if is_kata else 'false')
-    html = html.replace('KATA_SEQUENCE', kata_sequence_json)
     return html
 
 # ========== SESSION STATE ==========
@@ -588,7 +481,6 @@ if 'history' not in st.session_state: st.session_state.history = []
 if 'last_spoken_text' not in st.session_state: st.session_state.last_spoken_text = ""
 if 'last_spoken_audio' not in st.session_state: st.session_state.last_spoken_audio = None
 if 'last_spoken_timestamp' not in st.session_state: st.session_state.last_spoken_timestamp = 0
-if 'kata' not in st.session_state: st.session_state.kata = None
 
 # ========== HEADER ==========
 st.markdown("""
@@ -618,7 +510,6 @@ with st.sidebar:
     if selected != st.session_state.robot_selected:
         st.session_state.robot_selected = selected
         st.session_state.last_action = "idle"
-        st.session_state.kata = None
         st.rerun()
     
     robot_info = ROBOTS[st.session_state.robot_selected]
@@ -631,39 +522,11 @@ with st.sidebar:
     
     st.markdown("---")
     
-    st.markdown("### 🥋 Kata Performance")
-    kata_names = list(KATAS.keys())
-    kata_selected = st.selectbox("Select Kata", options=["None"] + kata_names, 
-                                 index=0 if st.session_state.kata is None else kata_names.index(st.session_state.kata) + 1, key="kata_select")
-    if kata_selected == "None":
-        if st.session_state.kata is not None:
-            st.session_state.kata = None
-            st.session_state.command = ""
-            st.rerun()
-    else:
-        if st.session_state.kata != kata_selected:
-            st.session_state.kata = kata_selected
-            st.session_state.command = ""
-            st.rerun()
-    
-    if st.session_state.kata:
-        kata_info = KATAS[st.session_state.kata]
-        st.markdown(f"""
-        <div style="background: rgba(0,212,255,0.05); border: 1px solid #00d4ff; border-radius: 8px; padding: 8px 12px; margin-top: 5px;">
-            <span style="color: #8899bb; font-size: 0.8rem;">Active Kata</span><br>
-            <span style="color: #00d4ff; font-weight: 600;">{st.session_state.kata}</span><br>
-            <span style="color: #8899bb; font-size: 0.8rem;">Belt: {kata_info['belt_rank']}</span>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    st.markdown("---")
-    
     st.markdown("### 🎮 Commands")
     st.markdown("*Walk and Run loop continuously. Jump, Wave, Backflip play once.*")
     action_input = st.text_input("Action (e.g., walk, run, jump, wave, backflip)", key="action_input", placeholder="e.g., backflip")
     if st.button("▶️ Execute Action", use_container_width=True):
         if action_input.strip():
-            st.session_state.kata = None
             st.session_state.command = action_input.strip()
             st.session_state.last_action = action_input.strip().lower()
             st.rerun()
@@ -701,18 +564,13 @@ with st.sidebar:
     st.markdown("### 🔧 Status")
     st.markdown(f"**Current Robot:** {st.session_state.robot_selected}")
     st.markdown(f"**Last Action:** {st.session_state.last_action}")
-    if st.session_state.kata: st.markdown(f"**Kata:** {st.session_state.kata}")
 
 # ========== MAIN CONTENT ==========
 col_view, col_info = st.columns([3, 1])
 
 with col_view:
     st.markdown("### 🖥️ Robot View")
-    viewer_html = get_robot_viewer_html(
-        st.session_state.robot_selected,
-        st.session_state.command if st.session_state.kata is None else "",
-        st.session_state.kata
-    )
+    viewer_html = get_robot_viewer_html(st.session_state.robot_selected, st.session_state.command)
     st.components.v1.html(viewer_html, height=650, scrolling=False)
 
 with col_info:
@@ -729,14 +587,6 @@ with col_info:
         <div class="value">{st.session_state.last_action if st.session_state.last_action != "idle" else "—"}</div>
     </div>
     """, unsafe_allow_html=True)
-    
-    if st.session_state.kata:
-        st.markdown(f"""
-        <div class="status-panel" style="border-color: #ffaa00;">
-            <div class="label">Kata</div>
-            <div class="value" style="color: #ffaa00;">{st.session_state.kata}</div>
-        </div>
-        """, unsafe_allow_html=True)
     
     if st.session_state.last_spoken_audio and st.session_state.last_spoken_timestamp > 0:
         st.audio(st.session_state.last_spoken_audio, format="audio/mp3", autoplay=True)
