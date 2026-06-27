@@ -292,8 +292,8 @@ def get_robot_viewer_html(robot_name, command=None):
             let isAnimating = false;
             let animDuration = 2.0;
             let walkCycle = 0;
-            let backflipAngle = 0;
-            let waveAngle = 0;
+            let loopAnimation = false;
+            let animationStarted = false;
             
             function resetRobot() {
                 armGroupL.rotation.x = 0;
@@ -309,8 +309,6 @@ def get_robot_viewer_html(robot_name, command=None):
                 robot.rotation.z = 0;
                 headGroup.rotation.x = 0;
                 headGroup.rotation.y = 0;
-                waveAngle = 0;
-                backflipAngle = 0;
                 walkCycle = 0;
             }
             
@@ -319,20 +317,41 @@ def get_robot_viewer_html(robot_name, command=None):
                 animCommand = cmd;
                 animTime = 0;
                 isAnimating = true;
+                loopAnimation = false;
+                animationStarted = true;
                 switch(cmd) {
-                    case 'walk': animDuration = 3.0; break;
-                    case 'run': animDuration = 2.0; break;
-                    case 'jump': animDuration = 1.2; break;
-                    case 'wave': animDuration = 2.0; break;
-                    case 'backflip': animDuration = 1.5; break;
-                    default: isAnimating = false; break;
+                    case 'walk':
+                        animDuration = 1.0;
+                        loopAnimation = true;
+                        break;
+                    case 'run':
+                        animDuration = 0.6;
+                        loopAnimation = true;
+                        break;
+                    case 'jump':
+                        animDuration = 1.2;
+                        loopAnimation = false;
+                        break;
+                    case 'wave':
+                        animDuration = 2.0;
+                        loopAnimation = false;
+                        break;
+                    case 'backflip':
+                        animDuration = 1.5;
+                        loopAnimation = false;
+                        break;
+                    default:
+                        isAnimating = false;
+                        animationStarted = false;
+                        break;
                 }
             }
             
-            // If command is valid, start animation
             const validCommands = ['walk','run','jump','wave','backflip'];
             if (validCommands.includes(animCommand)) {
                 startCommand(animCommand);
+            } else {
+                resetRobot();
             }
             
             // ---- Animation Loop ----
@@ -343,52 +362,53 @@ def get_robot_viewer_html(robot_name, command=None):
                 const delta = clock.getDelta();
                 const time = clock.getElapsedTime();
                 
-                if (isAnimating) {
+                if (isAnimating && animationStarted) {
                     animTime += delta;
-                    const progress = Math.min(animTime / animDuration, 1);
-                    const t = progress < 0.5 ? 2*progress*progress : 1 - Math.pow(-2*progress+2, 2)/2;
-                    
-                    switch (animCommand) {
-                        case 'walk':
-                        case 'run':
-                            const speed = animCommand === 'walk' ? 1.0 : 2.0;
-                            walkCycle += delta * speed * 2.5;
-                            const swing = Math.sin(walkCycle) * 0.5;
-                            legGroupL.rotation.x = swing;
-                            legGroupR.rotation.x = -swing;
-                            armGroupL.rotation.x = -swing * 0.8;
-                            armGroupR.rotation.x = swing * 0.8;
-                            robot.position.y = Math.abs(Math.sin(walkCycle)) * 0.05;
-                            if (progress >= 1) { isAnimating = false; resetRobot(); }
-                            break;
-                        case 'jump':
-                            const jumpProg = progress < 0.5 ? 2*progress : 2*(1-progress);
-                            robot.position.y = jumpProg * 0.6;
-                            armGroupL.rotation.x = -1.2 * (1 - Math.abs(progress-0.5)*2);
-                            armGroupR.rotation.x = -1.2 * (1 - Math.abs(progress-0.5)*2);
-                            legGroupL.rotation.x = 0.3 * (1 - Math.abs(progress-0.5)*2);
-                            legGroupR.rotation.x = 0.3 * (1 - Math.abs(progress-0.5)*2);
-                            if (progress >= 1) { isAnimating = false; resetRobot(); }
-                            break;
-                        case 'wave':
-                            waveAngle = Math.sin(time * 4) * 0.8;
-                            armGroupR.rotation.x = -0.8 + waveAngle * 0.5;
-                            armGroupR.rotation.z = 0.5;
-                            headGroup.rotation.y = 0.4;
-                            if (progress >= 1) { isAnimating = false; resetRobot(); }
-                            break;
-                        case 'backflip':
-                            backflipAngle = t * Math.PI * 2;
-                            robot.rotation.x = backflipAngle;
-                            armGroupL.rotation.x = -0.5;
-                            armGroupR.rotation.x = -0.5;
-                            legGroupL.rotation.x = 0.3;
-                            legGroupR.rotation.x = 0.3;
-                            if (progress >= 1) { isAnimating = false; resetRobot(); }
-                            break;
-                        default:
+                    let progress = animTime / animDuration;
+                    if (loopAnimation) {
+                        // For walk/run, we use the time to produce a continuous swing
+                        const speed = animCommand === 'walk' ? 1.0 : 2.0;
+                        walkCycle += delta * speed * 2.5;
+                        const swing = Math.sin(walkCycle) * 0.5;
+                        legGroupL.rotation.x = swing;
+                        legGroupR.rotation.x = -swing;
+                        armGroupL.rotation.x = -swing * 0.8;
+                        armGroupR.rotation.x = swing * 0.8;
+                        robot.position.y = Math.abs(Math.sin(walkCycle)) * 0.05;
+                        // Keep animating indefinitely
+                    } else {
+                        // One-shot animations
+                        if (progress >= 1) {
                             isAnimating = false;
                             resetRobot();
+                            // For wave, we might want to keep the last pose for a moment, but reset is fine
+                        } else {
+                            const t = progress < 0.5 ? 2*progress*progress : 1 - Math.pow(-2*progress+2, 2)/2;
+                            switch (animCommand) {
+                                case 'jump':
+                                    const jumpProg = progress < 0.5 ? 2*progress : 2*(1-progress);
+                                    robot.position.y = jumpProg * 0.6;
+                                    armGroupL.rotation.x = -1.2 * (1 - Math.abs(progress-0.5)*2);
+                                    armGroupR.rotation.x = -1.2 * (1 - Math.abs(progress-0.5)*2);
+                                    legGroupL.rotation.x = 0.3 * (1 - Math.abs(progress-0.5)*2);
+                                    legGroupR.rotation.x = 0.3 * (1 - Math.abs(progress-0.5)*2);
+                                    break;
+                                case 'wave':
+                                    const waveAngle = Math.sin(time * 4) * 0.8;
+                                    armGroupR.rotation.x = -0.8 + waveAngle * 0.5;
+                                    armGroupR.rotation.z = 0.5;
+                                    headGroup.rotation.y = 0.4;
+                                    break;
+                                case 'backflip':
+                                    const backflipAngle = t * Math.PI * 2;
+                                    robot.rotation.x = backflipAngle;
+                                    armGroupL.rotation.x = -0.5;
+                                    armGroupR.rotation.x = -0.5;
+                                    legGroupL.rotation.x = 0.3;
+                                    legGroupR.rotation.x = 0.3;
+                                    break;
+                            }
+                        }
                     }
                 }
                 
@@ -457,6 +477,7 @@ with st.sidebar:
     
     st.markdown("---")
     st.markdown("### 🎮 Commands")
+    st.markdown("*Walk and Run loop continuously. Jump, Wave, Backflip play once.*")
     action_input = st.text_input("Action (e.g., walk, run, jump, wave, backflip)", key="action_input", placeholder="e.g., backflip")
     if st.button("▶️ Execute Action", use_container_width=True):
         if action_input.strip():
