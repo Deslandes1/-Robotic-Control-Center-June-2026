@@ -606,8 +606,10 @@ col_view, col_info = st.columns([3, 1])
 
 with col_view:
     st.markdown("### 🖥️ Robot View")
+    # Build a unique key based on robot and command to force a fresh component only when needed
+    viewer_key = f"robot_viewer_{st.session_state.robot_selected}_{st.session_state.command}_{int(time.time() * 1000) % 10000}"
     viewer_html = get_robot_viewer_html(st.session_state.robot_selected, st.session_state.command)
-    st.components.v1.html(viewer_html, height=650, scrolling=False)
+    st.components.v1.html(viewer_html, height=650, scrolling=False, key=viewer_key)
 
 with col_info:
     st.markdown(f"""
@@ -624,13 +626,11 @@ with col_info:
     </div>
     """, unsafe_allow_html=True)
     
-    # Display audio with unique key based on timestamp
     if st.session_state.last_spoken_audio and st.session_state.last_spoken_timestamp > 0:
         audio_key = f"audio_{st.session_state.last_spoken_timestamp}"
         st.audio(st.session_state.last_spoken_audio, format="audio/mp3", autoplay=True, key=audio_key)
         st.caption(f"🔊 Speaking: {st.session_state.last_spoken_text[:50]}...")
         if st.button("🔁 Replay Voice"):
-            # Replay by re‑rendering with same key, but we can just re-run
             st.rerun()
     
     with st.expander("📜 Backstage – Command History", expanded=False):
@@ -646,7 +646,6 @@ with col_info:
             st.info("No commands yet. Send a command from the sidebar.")
 
 # ---------- Speak ----------
-# Add speech to history if new speech was generated
 if st.session_state.last_spoken_text and st.session_state.last_spoken_audio:
     if not any("Speak:" in h[0] and st.session_state.last_spoken_text in h[0] for h in st.session_state.history):
         st.session_state.history.append((f"Speak: {st.session_state.last_spoken_text}", "Speech played"))
