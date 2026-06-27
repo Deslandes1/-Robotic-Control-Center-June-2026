@@ -134,6 +134,8 @@ def get_robot_viewer_html(robot_name, command=None):
     valid_commands = ['walk', 'run', 'jump', 'wave', 'backflip']
     anim_cmd = cmd_lower if cmd_lower in valid_commands else 'idle'
 
+    timestamp = int(time.time() * 1000)
+
     html_template = """
     <!DOCTYPE html>
     <html>
@@ -152,328 +154,335 @@ def get_robot_viewer_html(robot_name, command=None):
             <div id="info">🤖 ROBOT_NAME | Command: COMMAND</div>
         </div>
         
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-        <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+        <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+        </script>
         
-        <script>
-            (function() {
-                const container = document.getElementById('container');
-                const loading = document.getElementById('loading');
-                
-                // Scene setup
-                const scene = new THREE.Scene();
-                scene.background = new THREE.Color(0x0a0a0f);
-                
-                const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 100);
-                camera.position.set(3, 2, 4);
-                camera.lookAt(0, 0.8, 0);
-                
-                const renderer = new THREE.WebGLRenderer({ antialias: true });
-                renderer.setSize(container.clientWidth, container.clientHeight);
-                renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-                renderer.shadowMap.enabled = true;
-                renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-                renderer.toneMapping = THREE.ACESFilmicToneMapping;
-                renderer.toneMappingExposure = 1.2;
-                container.appendChild(renderer.domElement);
-                
-                const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        <script type="module">
+            import * as THREE from 'three';
+            import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+            
+            const container = document.getElementById('container');
+            const loading = document.getElementById('loading');
+            
+            // Scene setup
+            const scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a0a0f);
+            
+            const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 100);
+            camera.position.set(3, 2, 4);
+            camera.lookAt(0, 0.8, 0);
+            
+            const renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.2;
+            container.appendChild(renderer.domElement);
+            
+            const controls = new OrbitControls(camera, renderer.domElement);
+            controls.target.set(0, 0.8, 0);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.minDistance = 2;
+            controls.maxDistance = 10;
+            controls.update();
+            
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0x404060);
+            scene.add(ambientLight);
+            const mainLight = new THREE.DirectionalLight(0xffffff, 1.5);
+            mainLight.position.set(4, 6, 5);
+            mainLight.castShadow = true;
+            scene.add(mainLight);
+            const fillLight = new THREE.DirectionalLight(0x4488ff, 0.5);
+            fillLight.position.set(-3, 1, 4);
+            scene.add(fillLight);
+            const rimLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            rimLight.position.set(0, 2, -5);
+            scene.add(rimLight);
+            
+            const gridHelper = new THREE.GridHelper(5, 10, 0x445566, 0x223344);
+            gridHelper.position.y = -0.01;
+            scene.add(gridHelper);
+            
+            // ---- Robot Construction (primitives) ----
+            const COLOR = MAIN_COLOR;
+            const ACCENT = ACCENT_COLOR;
+            
+            const robot = new THREE.Group();
+            
+            // Torso
+            const torsoGeo = new THREE.BoxGeometry(0.9, 1.0, 0.6);
+            const torsoMat = new THREE.MeshStandardMaterial({ color: COLOR, roughness: 0.3, metalness: 0.7 });
+            const torso = new THREE.Mesh(torsoGeo, torsoMat);
+            torso.position.y = 0.9;
+            torso.castShadow = true;
+            robot.add(torso);
+            
+            // Chest detail
+            const chestGeo = new THREE.BoxGeometry(0.6, 0.3, 0.1);
+            const chestMat = new THREE.MeshStandardMaterial({ color: ACCENT, roughness: 0.4, metalness: 0.8 });
+            const chest = new THREE.Mesh(chestGeo, chestMat);
+            chest.position.set(0, 1.0, 0.35);
+            robot.add(chest);
+            
+            // Head
+            const headGroup = new THREE.Group();
+            const headGeo = new THREE.BoxGeometry(0.5, 0.45, 0.45);
+            const headMat = new THREE.MeshStandardMaterial({ color: 0xaaaaaa, roughness: 0.3, metalness: 0.5 });
+            const head = new THREE.Mesh(headGeo, headMat);
+            head.position.y = 0.15;
+            head.castShadow = true;
+            headGroup.add(head);
+            
+            // Visor
+            const visorGeo = new THREE.BoxGeometry(0.35, 0.12, 0.05);
+            const visorMat = new THREE.MeshStandardMaterial({ color: 0x00ddff, emissive: 0x00bbff, emissiveIntensity: 0.8 });
+            const visor = new THREE.Mesh(visorGeo, visorMat);
+            visor.position.set(0, 0.15, 0.25);
+            headGroup.add(visor);
+            
+            // Antenna
+            const antennaMat = new THREE.MeshStandardMaterial({ color: 0xffaa00, emissive: 0xff8800, emissiveIntensity: 0.3 });
+            const antenna = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.2), antennaMat);
+            antenna.position.set(0, 0.45, 0);
+            headGroup.add(antenna);
+            const antennaBall = new THREE.Mesh(new THREE.SphereGeometry(0.05), antennaMat);
+            antennaBall.position.set(0, 0.55, 0);
+            headGroup.add(antennaBall);
+            
+            headGroup.position.set(0, 1.4, 0);
+            robot.add(headGroup);
+            
+            // Shoulders
+            const shoulderMat = new THREE.MeshStandardMaterial({ color: COLOR, roughness: 0.4, metalness: 0.6 });
+            const shoulderL = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 8), shoulderMat);
+            shoulderL.position.set(-0.6, 1.2, 0);
+            robot.add(shoulderL);
+            const shoulderR = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 8), shoulderMat);
+            shoulderR.position.set(0.6, 1.2, 0);
+            robot.add(shoulderR);
+            
+            // Arms
+            const armGroupL = new THREE.Group();
+            const armGroupR = new THREE.Group();
+            const upperArmMat = new THREE.MeshStandardMaterial({ color: COLOR, roughness: 0.3, metalness: 0.7 });
+            const lowerArmMat = new THREE.MeshStandardMaterial({ color: ACCENT, roughness: 0.4, metalness: 0.6 });
+            
+            // Left arm
+            const upperL = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.5, 0.2), upperArmMat);
+            upperL.position.y = -0.25;
+            armGroupL.add(upperL);
+            const lowerL = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.5, 0.18), lowerArmMat);
+            lowerL.position.y = -0.6;
+            armGroupL.add(lowerL);
+            const handMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.8, roughness: 0.2 });
+            const handL = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.15, 0.15), handMat);
+            handL.position.y = -0.85;
+            armGroupL.add(handL);
+            armGroupL.position.set(-0.6, 1.2, 0);
+            robot.add(armGroupL);
+            
+            // Right arm
+            const upperR = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.5, 0.2), upperArmMat);
+            upperR.position.y = -0.25;
+            armGroupR.add(upperR);
+            const lowerR = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.5, 0.18), lowerArmMat);
+            lowerR.position.y = -0.6;
+            armGroupR.add(lowerR);
+            const handR = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.15, 0.15), handMat);
+            handR.position.y = -0.85;
+            armGroupR.add(handR);
+            armGroupR.position.set(0.6, 1.2, 0);
+            robot.add(armGroupR);
+            
+            // Legs
+            const legGroupL = new THREE.Group();
+            const legGroupR = new THREE.Group();
+            const upperLegMat = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.5, metalness: 0.4 });
+            const lowerLegMat = new THREE.MeshStandardMaterial({ color: 0x777777, roughness: 0.5, metalness: 0.3 });
+            
+            // Left leg
+            const upperLegL = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.45, 0.25), upperLegMat);
+            upperLegL.position.y = -0.225;
+            legGroupL.add(upperLegL);
+            const lowerLegL = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.45, 0.22), lowerLegMat);
+            lowerLegL.position.y = -0.55;
+            legGroupL.add(lowerLegL);
+            const footMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.6, metalness: 0.2 });
+            const footL = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.1, 0.4), footMat);
+            footL.position.set(0, -0.8, 0.05);
+            legGroupL.add(footL);
+            legGroupL.position.set(-0.3, 0.4, 0);
+            robot.add(legGroupL);
+            
+            // Right leg
+            const upperLegR = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.45, 0.25), upperLegMat);
+            upperLegR.position.y = -0.225;
+            legGroupR.add(upperLegR);
+            const lowerLegR = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.45, 0.22), lowerLegMat);
+            lowerLegR.position.y = -0.55;
+            legGroupR.add(lowerLegR);
+            const footR = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.1, 0.4), footMat);
+            footR.position.set(0, -0.8, 0.05);
+            legGroupR.add(footR);
+            legGroupR.position.set(0.3, 0.4, 0);
+            robot.add(legGroupR);
+            
+            scene.add(robot);
+            
+            // Hide loading message
+            loading.style.display = 'none';
+            
+            // ---- Animation State ----
+            const animCommand = 'ANIM_CMD';
+            let animTime = 0;
+            let isAnimating = false;
+            let loopAnimation = false;
+            let walkCycle = 0;
+            let hasStarted = false;
+            
+            function resetRobot() {
+                armGroupL.rotation.x = 0;
+                armGroupL.rotation.z = 0;
+                armGroupR.rotation.x = 0;
+                armGroupR.rotation.z = 0;
+                legGroupL.rotation.x = 0;
+                legGroupL.rotation.z = 0;
+                legGroupR.rotation.x = 0;
+                legGroupR.rotation.z = 0;
+                robot.position.y = 0;
+                robot.rotation.x = 0;
+                robot.rotation.z = 0;
+                headGroup.rotation.x = 0;
+                headGroup.rotation.y = 0;
+                walkCycle = 0;
                 controls.target.set(0, 0.8, 0);
-                controls.enableDamping = true;
-                controls.dampingFactor = 0.05;
-                controls.minDistance = 2;
-                controls.maxDistance = 10;
-                controls.update();
-                
-                // Lighting
-                const ambientLight = new THREE.AmbientLight(0x404060);
-                scene.add(ambientLight);
-                const mainLight = new THREE.DirectionalLight(0xffffff, 1.5);
-                mainLight.position.set(4, 6, 5);
-                mainLight.castShadow = true;
-                scene.add(mainLight);
-                const fillLight = new THREE.DirectionalLight(0x4488ff, 0.5);
-                fillLight.position.set(-3, 1, 4);
-                scene.add(fillLight);
-                const rimLight = new THREE.DirectionalLight(0xffffff, 0.8);
-                rimLight.position.set(0, 2, -5);
-                scene.add(rimLight);
-                
-                const gridHelper = new THREE.GridHelper(5, 10, 0x445566, 0x223344);
-                gridHelper.position.y = -0.01;
-                scene.add(gridHelper);
-                
-                // ---- Robot Construction ----
-                const COLOR = MAIN_COLOR;
-                const ACCENT = ACCENT_COLOR;
-                
-                const robot = new THREE.Group();
-                
-                // Torso
-                const torsoGeo = new THREE.BoxGeometry(0.9, 1.0, 0.6);
-                const torsoMat = new THREE.MeshStandardMaterial({ color: COLOR, roughness: 0.3, metalness: 0.7 });
-                const torso = new THREE.Mesh(torsoGeo, torsoMat);
-                torso.position.y = 0.9;
-                torso.castShadow = true;
-                robot.add(torso);
-                
-                // Chest detail
-                const chestGeo = new THREE.BoxGeometry(0.6, 0.3, 0.1);
-                const chestMat = new THREE.MeshStandardMaterial({ color: ACCENT, roughness: 0.4, metalness: 0.8 });
-                const chest = new THREE.Mesh(chestGeo, chestMat);
-                chest.position.set(0, 1.0, 0.35);
-                robot.add(chest);
-                
-                // Head
-                const headGroup = new THREE.Group();
-                const headGeo = new THREE.BoxGeometry(0.5, 0.45, 0.45);
-                const headMat = new THREE.MeshStandardMaterial({ color: 0xaaaaaa, roughness: 0.3, metalness: 0.5 });
-                const head = new THREE.Mesh(headGeo, headMat);
-                head.position.y = 0.15;
-                head.castShadow = true;
-                headGroup.add(head);
-                
-                // Visor
-                const visorGeo = new THREE.BoxGeometry(0.35, 0.12, 0.05);
-                const visorMat = new THREE.MeshStandardMaterial({ color: 0x00ddff, emissive: 0x00bbff, emissiveIntensity: 0.8 });
-                const visor = new THREE.Mesh(visorGeo, visorMat);
-                visor.position.set(0, 0.15, 0.25);
-                headGroup.add(visor);
-                
-                // Antenna
-                const antennaMat = new THREE.MeshStandardMaterial({ color: 0xffaa00, emissive: 0xff8800, emissiveIntensity: 0.3 });
-                const antenna = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.2), antennaMat);
-                antenna.position.set(0, 0.45, 0);
-                headGroup.add(antenna);
-                const antennaBall = new THREE.Mesh(new THREE.SphereGeometry(0.05), antennaMat);
-                antennaBall.position.set(0, 0.55, 0);
-                headGroup.add(antennaBall);
-                
-                headGroup.position.set(0, 1.4, 0);
-                robot.add(headGroup);
-                
-                // Shoulders
-                const shoulderMat = new THREE.MeshStandardMaterial({ color: COLOR, roughness: 0.4, metalness: 0.6 });
-                const shoulderL = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 8), shoulderMat);
-                shoulderL.position.set(-0.6, 1.2, 0);
-                robot.add(shoulderL);
-                const shoulderR = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 8), shoulderMat);
-                shoulderR.position.set(0.6, 1.2, 0);
-                robot.add(shoulderR);
-                
-                // Arms
-                const armGroupL = new THREE.Group();
-                const armGroupR = new THREE.Group();
-                const upperArmMat = new THREE.MeshStandardMaterial({ color: COLOR, roughness: 0.3, metalness: 0.7 });
-                const lowerArmMat = new THREE.MeshStandardMaterial({ color: ACCENT, roughness: 0.4, metalness: 0.6 });
-                
-                // Left arm
-                const upperL = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.5, 0.2), upperArmMat);
-                upperL.position.y = -0.25;
-                armGroupL.add(upperL);
-                const lowerL = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.5, 0.18), lowerArmMat);
-                lowerL.position.y = -0.6;
-                armGroupL.add(lowerL);
-                const handMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.8, roughness: 0.2 });
-                const handL = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.15, 0.15), handMat);
-                handL.position.y = -0.85;
-                armGroupL.add(handL);
-                armGroupL.position.set(-0.6, 1.2, 0);
-                robot.add(armGroupL);
-                
-                // Right arm
-                const upperR = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.5, 0.2), upperArmMat);
-                upperR.position.y = -0.25;
-                armGroupR.add(upperR);
-                const lowerR = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.5, 0.18), lowerArmMat);
-                lowerR.position.y = -0.6;
-                armGroupR.add(lowerR);
-                const handR = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.15, 0.15), handMat);
-                handR.position.y = -0.85;
-                armGroupR.add(handR);
-                armGroupR.position.set(0.6, 1.2, 0);
-                robot.add(armGroupR);
-                
-                // Legs
-                const legGroupL = new THREE.Group();
-                const legGroupR = new THREE.Group();
-                const upperLegMat = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.5, metalness: 0.4 });
-                const lowerLegMat = new THREE.MeshStandardMaterial({ color: 0x777777, roughness: 0.5, metalness: 0.3 });
-                
-                // Left leg
-                const upperLegL = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.45, 0.25), upperLegMat);
-                upperLegL.position.y = -0.225;
-                legGroupL.add(upperLegL);
-                const lowerLegL = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.45, 0.22), lowerLegMat);
-                lowerLegL.position.y = -0.55;
-                legGroupL.add(lowerLegL);
-                const footMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.6, metalness: 0.2 });
-                const footL = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.1, 0.4), footMat);
-                footL.position.set(0, -0.8, 0.05);
-                legGroupL.add(footL);
-                legGroupL.position.set(-0.3, 0.4, 0);
-                robot.add(legGroupL);
-                
-                // Right leg
-                const upperLegR = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.45, 0.25), upperLegMat);
-                upperLegR.position.y = -0.225;
-                legGroupR.add(upperLegR);
-                const lowerLegR = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.45, 0.22), lowerLegMat);
-                lowerLegR.position.y = -0.55;
-                legGroupR.add(lowerLegR);
-                const footR = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.1, 0.4), footMat);
-                footR.position.set(0, -0.8, 0.05);
-                legGroupR.add(footR);
-                legGroupR.position.set(0.3, 0.4, 0);
-                robot.add(legGroupR);
-                
-                scene.add(robot);
-                
-                // Remove loading text
-                loading.style.display = 'none';
-                
-                // ---- Animation State ----
-                const animCommand = 'ANIM_CMD';
-                let animTime = 0;
-                let isAnimating = false;
-                let loopAnimation = false;
-                let walkCycle = 0;
-                let hasStarted = false;
-                
-                function resetRobot() {
-                    armGroupL.rotation.x = 0;
-                    armGroupL.rotation.z = 0;
-                    armGroupR.rotation.x = 0;
-                    armGroupR.rotation.z = 0;
-                    legGroupL.rotation.x = 0;
-                    legGroupL.rotation.z = 0;
-                    legGroupR.rotation.x = 0;
-                    legGroupR.rotation.z = 0;
-                    robot.position.y = 0;
-                    robot.rotation.x = 0;
-                    robot.rotation.z = 0;
-                    headGroup.rotation.x = 0;
-                    headGroup.rotation.y = 0;
-                    walkCycle = 0;
-                    controls.target.set(0, 0.8, 0);
+            }
+            
+            function startCommand(cmd) {
+                resetRobot();
+                animTime = 0;
+                isAnimating = true;
+                loopAnimation = false;
+                hasStarted = true;
+                switch(cmd) {
+                    case 'walk':
+                        loopAnimation = true;
+                        break;
+                    case 'run':
+                        loopAnimation = true;
+                        break;
+                    case 'jump':
+                        loopAnimation = false;
+                        break;
+                    case 'wave':
+                        loopAnimation = false;
+                        break;
+                    case 'backflip':
+                        loopAnimation = false;
+                        break;
+                    default:
+                        isAnimating = false;
+                        hasStarted = false;
+                        break;
                 }
+            }
+            
+            const valid = ['walk','run','jump','wave','backflip'];
+            if (valid.includes(animCommand)) {
+                startCommand(animCommand);
+            } else {
+                resetRobot();
+            }
+            
+            // ---- Animation Loop ----
+            const clock = new THREE.Clock();
+            
+            function animate() {
+                requestAnimationFrame(animate);
+                const delta = clock.getDelta();
+                const time = clock.getElapsedTime();
                 
-                function startCommand(cmd) {
-                    resetRobot();
-                    animTime = 0;
-                    isAnimating = true;
-                    loopAnimation = false;
-                    hasStarted = true;
-                    switch(cmd) {
-                        case 'walk':
-                            loopAnimation = true;
-                            break;
-                        case 'run':
-                            loopAnimation = true;
-                            break;
-                        case 'jump':
-                            loopAnimation = false;
-                            break;
-                        case 'wave':
-                            loopAnimation = false;
-                            break;
-                        case 'backflip':
-                            loopAnimation = false;
-                            break;
-                        default:
-                            isAnimating = false;
-                            hasStarted = false;
-                            break;
-                    }
-                }
-                
-                const valid = ['walk','run','jump','wave','backflip'];
-                if (valid.includes(animCommand)) {
-                    startCommand(animCommand);
-                } else {
-                    resetRobot();
-                }
-                
-                // ---- Animation Loop ----
-                const clock = new THREE.Clock();
-                
-                function animate() {
-                    requestAnimationFrame(animate);
-                    const delta = clock.getDelta();
-                    const time = clock.getElapsedTime();
+                if (isAnimating && hasStarted) {
+                    animTime += delta;
                     
-                    if (isAnimating && hasStarted) {
-                        animTime += delta;
-                        
-                        if (loopAnimation) {
-                            // Walk / Run – continuous
-                            const speed = animCommand === 'walk' ? 1.0 : 2.0;
-                            walkCycle += delta * speed * 2.5;
-                            const swing = Math.sin(walkCycle) * 0.5;
-                            legGroupL.rotation.x = swing;
-                            legGroupR.rotation.x = -swing;
-                            armGroupL.rotation.x = -swing * 0.8;
-                            armGroupR.rotation.x = swing * 0.8;
-                            robot.position.y = Math.abs(Math.sin(walkCycle)) * 0.05;
+                    if (loopAnimation) {
+                        // Walk / Run – continuous
+                        const speed = animCommand === 'walk' ? 1.0 : 2.0;
+                        walkCycle += delta * speed * 2.5;
+                        const swing = Math.sin(walkCycle) * 0.5;
+                        legGroupL.rotation.x = swing;
+                        legGroupR.rotation.x = -swing;
+                        armGroupL.rotation.x = -swing * 0.8;
+                        armGroupR.rotation.x = swing * 0.8;
+                        robot.position.y = Math.abs(Math.sin(walkCycle)) * 0.05;
+                    } else {
+                        // One-shot animations
+                        let duration = 1.2;
+                        switch(animCommand) {
+                            case 'jump': duration = 1.2; break;
+                            case 'wave': duration = 2.0; break;
+                            case 'backflip': duration = 1.5; break;
+                        }
+                        const progress = Math.min(animTime / duration, 1);
+                        if (progress >= 1) {
+                            isAnimating = false;
+                            resetRobot();
                         } else {
-                            // One-shot animations
-                            let duration = 1.2;
+                            const t = progress < 0.5 ? 2*progress*progress : 1 - Math.pow(-2*progress+2, 2)/2;
                             switch(animCommand) {
-                                case 'jump': duration = 1.2; break;
-                                case 'wave': duration = 2.0; break;
-                                case 'backflip': duration = 1.5; break;
-                            }
-                            const progress = Math.min(animTime / duration, 1);
-                            if (progress >= 1) {
-                                isAnimating = false;
-                                resetRobot();
-                            } else {
-                                const t = progress < 0.5 ? 2*progress*progress : 1 - Math.pow(-2*progress+2, 2)/2;
-                                switch(animCommand) {
-                                    case 'jump':
-                                        const jumpHeight = t < 0.5 ? t*2 : 2*(1-t);
-                                        robot.position.y = jumpHeight * 0.6;
-                                        controls.target.set(0, robot.position.y + 0.8, 0);
-                                        armGroupL.rotation.x = -1.2 * (1 - Math.abs(progress-0.5)*2);
-                                        armGroupR.rotation.x = -1.2 * (1 - Math.abs(progress-0.5)*2);
-                                        legGroupL.rotation.x = 0.3 * (1 - Math.abs(progress-0.5)*2);
-                                        legGroupR.rotation.x = 0.3 * (1 - Math.abs(progress-0.5)*2);
-                                        break;
-                                    case 'wave':
-                                        armGroupR.rotation.x = -1.2 + Math.sin(time * 6) * 0.5;
-                                        armGroupR.rotation.z = 0.5;
-                                        headGroup.rotation.y = 0.4;
-                                        break;
-                                    case 'backflip':
-                                        const angle = -t * Math.PI * 2;
-                                        robot.rotation.x = angle;
-                                        const jumpHeight = t < 0.5 ? t * 2 * 0.6 : 2 * (1 - t) * 0.6;
-                                        robot.position.y = jumpHeight;
-                                        controls.target.set(0, jumpHeight + 0.8, 0);
-                                        armGroupL.rotation.x = -0.5;
-                                        armGroupR.rotation.x = -0.5;
-                                        legGroupL.rotation.x = 0.3;
-                                        legGroupR.rotation.x = 0.3;
-                                        break;
-                                }
+                                case 'jump':
+                                    const jumpHeight = t < 0.5 ? t*2 : 2*(1-t);
+                                    robot.position.y = jumpHeight * 0.6;
+                                    controls.target.set(0, robot.position.y + 0.8, 0);
+                                    armGroupL.rotation.x = -1.2 * (1 - Math.abs(progress-0.5)*2);
+                                    armGroupR.rotation.x = -1.2 * (1 - Math.abs(progress-0.5)*2);
+                                    legGroupL.rotation.x = 0.3 * (1 - Math.abs(progress-0.5)*2);
+                                    legGroupR.rotation.x = 0.3 * (1 - Math.abs(progress-0.5)*2);
+                                    break;
+                                case 'wave':
+                                    armGroupR.rotation.x = -1.2 + Math.sin(time * 6) * 0.5;
+                                    armGroupR.rotation.z = 0.5;
+                                    headGroup.rotation.y = 0.4;
+                                    break;
+                                case 'backflip':
+                                    const angle = -t * Math.PI * 2;
+                                    robot.rotation.x = angle;
+                                    const jumpHeight = t < 0.5 ? t * 2 * 0.6 : 2 * (1 - t) * 0.6;
+                                    robot.position.y = jumpHeight;
+                                    controls.target.set(0, jumpHeight + 0.8, 0);
+                                    armGroupL.rotation.x = -0.5;
+                                    armGroupR.rotation.x = -0.5;
+                                    legGroupL.rotation.x = 0.3;
+                                    legGroupR.rotation.x = 0.3;
+                                    break;
                             }
                         }
                     }
-                    
-                    controls.update();
-                    renderer.render(scene, camera);
                 }
-                animate();
                 
-                // ---- Resize ----
-                window.addEventListener('resize', () => {
-                    const w = container.clientWidth;
-                    const h = container.clientHeight;
-                    renderer.setSize(w, h);
-                    camera.aspect = w / h;
-                    camera.updateProjectionMatrix();
-                });
-            })();
+                controls.update();
+                renderer.render(scene, camera);
+            }
+            animate();
+            
+            // ---- Resize ----
+            window.addEventListener('resize', () => {
+                const w = container.clientWidth;
+                const h = container.clientHeight;
+                renderer.setSize(w, h);
+                camera.aspect = w / h;
+                camera.updateProjectionMatrix();
+            });
         </script>
     </body>
     </html>
