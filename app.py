@@ -55,7 +55,6 @@ st.markdown("""
         border: none !important;
         border-radius: 8px !important;
         font-weight: 600 !important;
-        width: 100% !important;
     }
     .stButton>button:hover { transform: scale(1.02); box-shadow: 0 0 30px rgba(0,212,255,0.3); }
     .stTextInput>div>div>input {
@@ -108,6 +107,9 @@ st.markdown("""
     }
     .backstage {
         margin-top: 20px;
+    }
+    .apply-btn {
+        margin-top: 10px;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -485,6 +487,8 @@ def get_robot_viewer_html(robot_name, command=None):
 # ========== SESSION STATE ==========
 if 'robot_selected' not in st.session_state:
     st.session_state.robot_selected = "Red Titan"
+if 'temp_robot' not in st.session_state:
+    st.session_state.temp_robot = "Red Titan"  # Temporary selection
 if 'command' not in st.session_state:
     st.session_state.command = ""
 if 'speak_text' not in st.session_state:
@@ -493,6 +497,10 @@ if 'last_action' not in st.session_state:
     st.session_state.last_action = "idle"
 if 'history' not in st.session_state:
     st.session_state.history = []
+if 'last_spoken_text' not in st.session_state:
+    st.session_state.last_spoken_text = ""
+if 'last_spoken_audio' not in st.session_state:
+    st.session_state.last_spoken_audio = None
 
 # ========== HEADER ==========
 st.markdown("""
@@ -517,12 +525,31 @@ with st.sidebar:
     st.markdown("---")
     
     st.markdown("### 🤖 Robot Selection")
-    robot_names = list(ROBOTS.keys())
-    selected = st.selectbox("Select Robot", robot_names, index=robot_names.index(st.session_state.robot_selected))
-    if selected != st.session_state.robot_selected:
-        st.session_state.robot_selected = selected
-        st.session_state.last_action = "idle"
-        st.rerun()
+    # Use a temporary variable that does NOT trigger rerun
+    temp_robot = st.selectbox(
+        "Select Robot",
+        options=list(ROBOTS.keys()),
+        index=list(ROBOTS.keys()).index(st.session_state.temp_robot),
+        key="temp_robot_select"
+    )
+    # Update temp_robot in session state without rerun
+    if temp_robot != st.session_state.temp_robot:
+        st.session_state.temp_robot = temp_robot
+    
+    # Apply button – updates the actual robot and triggers rerun (but user controls when)
+    if st.button("✅ Apply Robot", use_container_width=True):
+        if st.session_state.temp_robot != st.session_state.robot_selected:
+            st.session_state.robot_selected = st.session_state.temp_robot
+            st.session_state.last_action = "idle"
+            st.rerun()
+    
+    # Show current active robot
+    st.markdown(f"""
+    <div style="background: rgba(0,212,255,0.05); border: 1px solid #00d4ff; border-radius: 8px; padding: 8px 12px; text-align: center; margin-top: 5px;">
+        <span style="color: #8899bb; font-size: 0.8rem;">Active Robot</span><br>
+        <span style="color: #00d4ff; font-weight: 600;">{st.session_state.robot_selected}</span>
+    </div>
+    """, unsafe_allow_html=True)
     
     robot_info = ROBOTS[st.session_state.robot_selected]
     st.markdown(f"""
@@ -550,7 +577,14 @@ with st.sidebar:
     if st.button("🔊 Make Robot Speak", use_container_width=True):
         if speak_input.strip():
             st.session_state.speak_text = speak_input.strip()
-            st.rerun()
+            # Generate audio and store
+            audio_bytes = generate_audio(speak_input.strip(), "en")
+            if audio_bytes:
+                st.session_state.last_spoken_text = speak_input.strip()
+                st.session_state.last_spoken_audio = audio_bytes
+                st.rerun()
+            else:
+                st.error("❌ Speech generation failed.")
         else:
             st.warning("Please enter text to speak.")
     
@@ -579,19 +613,28 @@ with col_view:
 
 with col_info:
     # Minimal status panel
-    st.markdown("""
+    st.markdown(f"""
     <div class="status-panel">
         <div class="label">Current Robot</div>
-        <div class="value">{} </div>
+        <div class="value">{st.session_state.robot_selected}</div>
     </div>
-    """.format(st.session_state.robot_selected), unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
     
-    st.markdown("""
+    st.markdown(f"""
     <div class="status-panel">
         <div class="label">Last Action</div>
-        <div class="value">{}</div>
+        <div class="value">{st.session_state.last_action if st.session_state.last_action != "idle" else "—"}</div>
     </div>
-    """.format(st.session_state.last_action if st.session_state.last_action != "idle" else "—"), unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
+    
+    # Play stored audio if available (auto-play after rerun)
+    if st.session_state.last_spoken_audio and st.session_state.last_spoken_text:
+        # Use st.audio with autoplay (browser may block, but we try)
+        st.audio(st.session_state.last_spoken_audio, format="audio/mp3", autoplay=True)
+        st.caption(f"🔊 Speaking: {st.session_state.last_spoken_text[:50]}...")
+        # Add a button to replay manually if autoplay is blocked
+        if st.button("🔁 Replay Voice"):
+            st.audio(st.session_state.last_spoken_audio, format="audio/mp3", autoplay=True)
     
     # Backstage: Command History (collapsible)
     with st.expander("📜 Backstage – Command History", expanded=False):
@@ -607,15 +650,14 @@ with col_info:
             st.info("No commands yet. Send a command from the sidebar.")
 
 # ---------- Speak ----------
-if st.session_state.speak_text:
-    with st.spinner("🗣️ Generating speech..."):
-        audio_bytes = generate_audio(st.session_state.speak_text, "en")
-        if audio_bytes:
-            st.audio(audio_bytes, format="audio/mp3")
-            st.session_state.history.append((f"Speak: {st.session_state.speak_text}", "Speech played"))
-            st.success("✅ Speech played.")
-        else:
-            st.error("❌ Speech generation failed.")
+# The speech is now handled above, but we also need to add to history when spoken
+if st.session_state.speak_text and st.session_state.last_spoken_audio:
+    # Add to history if not already added (avoid duplicates)
+    if not any("Speak:" in h[0] and st.session_state.speak_text in h[0] for h in st.session_state.history):
+        st.session_state.history.append((f"Speak: {st.session_state.speak_text}", "Speech played"))
+        if len(st.session_state.history) > 20:
+            st.session_state.history = st.session_state.history[-20:]
+    # Clear speak_text to avoid re-adding on next rerun
     st.session_state.speak_text = ""
 
 # ========== FOOTER ==========
