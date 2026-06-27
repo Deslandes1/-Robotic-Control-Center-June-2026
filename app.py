@@ -134,7 +134,6 @@ def get_robot_viewer_html(robot_name, command=None):
     valid_commands = ['walk', 'run', 'jump', 'wave', 'backflip']
     anim_cmd = cmd_lower if cmd_lower in valid_commands else 'idle'
 
-    # Unique timestamp to force re-render on every call
     timestamp = int(time.time() * 1000)
 
     html_template = """
@@ -156,8 +155,8 @@ def get_robot_viewer_html(robot_name, command=None):
             <div id="info">🤖 ROBOT_NAME | Command: COMMAND</div>
         </div>
         
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-        <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js?t=TIMESTAMP_PLACEHOLDER"></script>
+        <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js?t=TIMESTAMP_PLACEHOLDER"></script>
         
         <script>
             (function() {
@@ -449,14 +448,11 @@ def get_robot_viewer_html(robot_name, command=None):
                                         headGroup.rotation.y = 0.4;
                                         break;
                                     case 'backflip':
-                                        // Enhanced backflip: higher jump and full rotation
                                         var angle = -t * Math.PI * 2;
                                         robot.rotation.x = angle;
-                                        // Jump height: peak at 1.2 units
                                         var jumpHeight = t < 0.5 ? t * 2 * 1.2 : 2 * (1 - t) * 1.2;
                                         robot.position.y = jumpHeight;
                                         controls.target.set(0, jumpHeight + 0.8, 0);
-                                        // Tuck arms and legs more for acrobatic feel
                                         armGroupL.rotation.x = -0.7;
                                         armGroupR.rotation.x = -0.7;
                                         legGroupL.rotation.x = 0.4;
@@ -490,14 +486,13 @@ def get_robot_viewer_html(robot_name, command=None):
     html = html.replace('ANIM_CMD', anim_cmd)
     html = html.replace('MAIN_COLOR', str(main_color))
     html = html.replace('ACCENT_COLOR', str(accent))
-    html = html.replace('<!-- TIMESTAMP_PLACEHOLDER -->', f'<!-- {timestamp} -->')
+    # Replace timestamp in both script URLs and comment
+    html = html.replace('TIMESTAMP_PLACEHOLDER', str(timestamp))
     return html
 
 # ========== SESSION STATE ==========
 if 'robot_selected' not in st.session_state:
     st.session_state.robot_selected = "Red Titan"
-if 'temp_robot' not in st.session_state:
-    st.session_state.temp_robot = "Red Titan"
 if 'command' not in st.session_state:
     st.session_state.command = ""
 if 'speak_text' not in st.session_state:
@@ -536,27 +531,18 @@ with st.sidebar:
     st.markdown("---")
     
     st.markdown("### 🤖 Robot Selection")
-    temp_robot = st.selectbox(
+    # Directly update robot_selected on change
+    robot_names = list(ROBOTS.keys())
+    selected = st.selectbox(
         "Select Robot",
-        options=list(ROBOTS.keys()),
-        index=list(ROBOTS.keys()).index(st.session_state.temp_robot),
-        key="temp_robot_select"
+        options=robot_names,
+        index=robot_names.index(st.session_state.robot_selected),
+        key="robot_select"
     )
-    if temp_robot != st.session_state.temp_robot:
-        st.session_state.temp_robot = temp_robot
-    
-    if st.button("✅ Apply Robot", use_container_width=True):
-        if st.session_state.temp_robot != st.session_state.robot_selected:
-            st.session_state.robot_selected = st.session_state.temp_robot
-            st.session_state.last_action = "idle"
-            st.rerun()
-    
-    st.markdown(f"""
-    <div style="background: rgba(0,212,255,0.05); border: 1px solid #00d4ff; border-radius: 8px; padding: 8px 12px; text-align: center; margin-top: 5px;">
-        <span style="color: #8899bb; font-size: 0.8rem;">Active Robot</span><br>
-        <span style="color: #00d4ff; font-weight: 600;">{st.session_state.robot_selected}</span>
-    </div>
-    """, unsafe_allow_html=True)
+    if selected != st.session_state.robot_selected:
+        st.session_state.robot_selected = selected
+        st.session_state.last_action = "idle"
+        st.rerun()
     
     robot_info = ROBOTS[st.session_state.robot_selected]
     st.markdown(f"""
