@@ -174,7 +174,6 @@ def get_robot_viewer_html(robot_name, command=None, kata_name=None):
     kata_sequence = get_kata_sequence(kata_name) if is_kata else []
     kata_sequence_json = json.dumps(kata_sequence)
 
-    # HTML with immediate loading: use a simpler approach
     html_template = """
     <!DOCTYPE html>
     <html>
@@ -184,38 +183,38 @@ def get_robot_viewer_html(robot_name, command=None, kata_name=None):
             body { margin: 0; overflow: hidden; background: #0a0a0f; font-family: Arial; }
             #container { width: 100vw; height: 100vh; position: relative; }
             #info { position: absolute; bottom: 20px; left: 20px; color: #8899bb; font-size: 14px; pointer-events: none; z-index: 10; }
-            #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #8899bb; font-size: 18px; z-index: 5; display: none; }
         </style>
     </head>
     <body>
         <div id="container">
-            <div id="loading">🤖 Loading robot...</div>
             <div id="info">🤖 ROBOT_NAME | Command: COMMAND</div>
         </div>
         
-        <!-- Fast CDN with fallback -->
+        <!-- Fast CDN -->
         <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
         
         <script>
-            // Immediately create a basic scene even if THREE is slow
             (function() {
                 var container = document.getElementById('container');
-                var loading = document.getElementById('loading');
-                loading.style.display = 'none'; // hide loading immediately
                 
-                // Try to initialize THREE
+                // Ensure container has a size
+                function resizeRenderer(renderer, camera) {
+                    var w = container.clientWidth;
+                    var h = container.clientHeight;
+                    if (w > 0 && h > 0) {
+                        renderer.setSize(w, h);
+                        camera.aspect = w / h;
+                        camera.updateProjectionMatrix();
+                    }
+                }
+                
                 function init() {
                     if (typeof THREE === 'undefined') {
-                        // If THREE not loaded, show error after 1s
-                        setTimeout(function() {
-                            if (typeof THREE === 'undefined') {
-                                container.innerHTML = '<div style="color:#ff6b6b; font-size:20px; text-align:center; padding-top:40%;">⚠️ 3D engine failed to load. Please refresh.</div>';
-                            }
-                        }, 1000);
+                        setTimeout(init, 100);
                         return;
                     }
-                    // Proceed with scene
+                    
                     var scene = new THREE.Scene();
                     scene.background = new THREE.Color(0x0a0a0f);
                     
@@ -257,7 +256,7 @@ def get_robot_viewer_html(robot_name, command=None, kata_name=None):
                     gridHelper.position.y = -0.01;
                     scene.add(gridHelper);
                     
-                    // Robot construction (same as before)
+                    // ---- Robot Construction ----
                     var COLOR = MAIN_COLOR;
                     var ACCENT = ACCENT_COLOR;
                     var KIMONO = KIMONO_COLOR;
@@ -267,7 +266,6 @@ def get_robot_viewer_html(robot_name, command=None, kata_name=None):
                     
                     var robot = new THREE.Group();
                     
-                    // Torso
                     var torsoGeo = new THREE.BoxGeometry(0.9, 1.0, 0.6);
                     var torsoMat = new THREE.MeshStandardMaterial({ color: KIMONO, roughness: 0.3, metalness: 0.7 });
                     var torso = new THREE.Mesh(torsoGeo, torsoMat);
@@ -567,16 +565,29 @@ def get_robot_viewer_html(robot_name, command=None, kata_name=None):
                     }
                     animate();
                     
+                    // Resize handler
                     window.addEventListener('resize', function() {
-                        var w = container.clientWidth;
-                        var h = container.clientHeight;
-                        renderer.setSize(w, h);
-                        camera.aspect = w / h;
-                        camera.updateProjectionMatrix();
+                        resizeRenderer(renderer, camera);
                     });
+                    
+                    // Force resize after a short delay
+                    setTimeout(function() {
+                        resizeRenderer(renderer, camera);
+                    }, 200);
                 }
-                // Start init after a short delay to let THREE load
-                setTimeout(init, 100);
+                
+                // Start when THREE is ready
+                if (typeof THREE !== 'undefined') {
+                    init();
+                } else {
+                    setTimeout(function() {
+                        if (typeof THREE !== 'undefined') {
+                            init();
+                        } else {
+                            container.innerHTML = '<div style="color:#ff6b6b; font-size:20px; text-align:center; padding-top:40%;">⚠️ 3D engine failed to load. Please refresh.</div>';
+                        }
+                    }, 1000);
+                }
             })();
         </script>
     </body>
