@@ -134,7 +134,6 @@ def get_robot_viewer_html(robot_name, command=None):
     valid_commands = ['walk', 'run', 'jump', 'wave', 'backflip']
     anim_cmd = cmd_lower if cmd_lower in valid_commands else 'idle'
 
-    # Use a simple script-tag approach (no importmap)
     html_template = """
     <!DOCTYPE html>
     <html>
@@ -446,15 +445,17 @@ def get_robot_viewer_html(robot_name, command=None):
                                         headGroup.rotation.y = 0.4;
                                         break;
                                     case 'backflip':
+                                        // Enhanced backflip: higher jump and full rotation
                                         var angle = -t * Math.PI * 2;
                                         robot.rotation.x = angle;
-                                        var jumpHeight = t < 0.5 ? t * 2 * 0.6 : 2 * (1 - t) * 0.6;
+                                        var jumpHeight = t < 0.5 ? t * 2 * 1.0 : 2 * (1 - t) * 1.0;
                                         robot.position.y = jumpHeight;
                                         controls.target.set(0, jumpHeight + 0.8, 0);
-                                        armGroupL.rotation.x = -0.5;
-                                        armGroupR.rotation.x = -0.5;
-                                        legGroupL.rotation.x = 0.3;
-                                        legGroupR.rotation.x = 0.3;
+                                        // Tuck arms and legs more for acrobatic feel
+                                        armGroupL.rotation.x = -0.7;
+                                        armGroupR.rotation.x = -0.7;
+                                        legGroupL.rotation.x = 0.4;
+                                        legGroupR.rotation.x = 0.4;
                                         break;
                                 }
                             }
