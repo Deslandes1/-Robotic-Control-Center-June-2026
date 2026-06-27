@@ -56,6 +56,7 @@ st.markdown("""
         border: none !important;
         border-radius: 8px !important;
         font-weight: 600 !important;
+        width: 100%;
     }
     .stButton>button:hover { transform: scale(1.02); box-shadow: 0 0 30px rgba(0,212,255,0.3); }
     .stTextInput>div>div>input {
@@ -106,8 +107,16 @@ st.markdown("""
         font-size: 1.2rem;
         font-weight: 600;
     }
-    .backstage {
-        margin-top: 20px;
+    .log-box {
+        background: #050508;
+        border: 1px solid #1a2a4a;
+        border-radius: 8px;
+        padding: 12px;
+        height: 200px;
+        overflow-y: auto;
+        font-family: monospace;
+        font-size: 0.85rem;
+        color: #00ff64;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -174,7 +183,6 @@ def get_robot_viewer_html(robot_name, command=None, kata_name=None):
     kata_sequence = get_kata_sequence(kata_name) if is_kata else []
     kata_sequence_json = json.dumps(kata_sequence)
 
-    # Use plain script tags for maximum reliability
     html_template = """
     <!DOCTYPE html>
     <html>
@@ -197,13 +205,11 @@ def get_robot_viewer_html(robot_name, command=None, kata_name=None):
         <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
         
         <script>
-            // Hide loading after 0.8 seconds regardless
             setTimeout(function() {
                 var l = document.getElementById('loading');
                 if (l) l.style.display = 'none';
             }, 800);
             
-            // Wait for THREE to be defined, then run
             function checkThree() {
                 if (typeof THREE !== 'undefined') {
                     initScene();
@@ -367,418 +373,4 @@ def get_robot_viewer_html(robot_name, command=None, kata_name=None):
                 var upperLegMat = new THREE.MeshStandardMaterial({ color: KIMONO, roughness: 0.5, metalness: 0.4 });
                 var lowerLegMat = new THREE.MeshStandardMaterial({ color: KIMONO, roughness: 0.5, metalness: 0.3 });
                 
-                var upperLegL = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.45, 0.25), upperLegMat);
-                upperLegL.position.y = -0.225;
-                legGroupL.add(upperLegL);
-                var lowerLegL = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.45, 0.22), lowerLegMat);
-                lowerLegL.position.y = -0.55;
-                legGroupL.add(lowerLegL);
-                var footMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.6, metalness: 0.2 });
-                var footL = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.1, 0.4), footMat);
-                footL.position.set(0, -0.8, 0.05);
-                legGroupL.add(footL);
-                legGroupL.position.set(-0.3, 0.4, 0);
-                robot.add(legGroupL);
-                
-                var upperLegR = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.45, 0.25), upperLegMat);
-                upperLegR.position.y = -0.225;
-                legGroupR.add(upperLegR);
-                var lowerLegR = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.45, 0.22), lowerLegMat);
-                lowerLegR.position.y = -0.55;
-                legGroupR.add(lowerLegR);
-                var footR = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.1, 0.4), footMat);
-                footR.position.set(0, -0.8, 0.05);
-                legGroupR.add(footR);
-                legGroupR.position.set(0.3, 0.4, 0);
-                robot.add(legGroupR);
-                
-                scene.add(robot);
-                
-                // ---- Animation State ----
-                var animCommand = 'ANIM_CMD';
-                var animTime = 0;
-                var isAnimating = false;
-                var loopAnimation = false;
-                var walkCycle = 0;
-                var hasStarted = false;
-                var kataSequence = KATA_SEQUENCE;
-                var isKataRunning = false;
-                var kataActionIndex = 0;
-                var kataActionTime = 0;
-                var kataAction = null;
-                var kataComplete = false;
-                var bowActive = false;
-                var bowProgress = 0;
-                
-                function resetRobot() {
-                    armGroupL.rotation.x = 0; armGroupL.rotation.z = 0;
-                    armGroupR.rotation.x = 0; armGroupR.rotation.z = 0;
-                    legGroupL.rotation.x = 0; legGroupL.rotation.z = 0;
-                    legGroupR.rotation.x = 0; legGroupR.rotation.z = 0;
-                    robot.position.y = 0; robot.rotation.x = 0; robot.rotation.z = 0;
-                    headGroup.rotation.x = 0; headGroup.rotation.y = 0;
-                    walkCycle = 0; controls.target.set(0, 0.8, 0);
-                    bowActive = false; bowProgress = 0;
-                }
-                
-                function startKata() {
-                    if (kataSequence.length === 0) return;
-                    resetRobot();
-                    isKataRunning = true;
-                    kataActionIndex = 0; kataActionTime = 0; kataTotalTime = 0; kataComplete = false;
-                    startNextKataAction();
-                }
-                
-                function startNextKataAction() {
-                    if (kataActionIndex >= kataSequence.length) {
-                        isKataRunning = false; kataComplete = true; resetRobot(); return;
-                    }
-                    var action = kataSequence[kataActionIndex];
-                    kataAction = action; kataActionTime = 0;
-                    var type = action[0];
-                    if (type === 'walk' || type === 'run') {
-                        loopAnimation = true; isAnimating = true; hasStarted = true; animCommand = type;
-                    } else if (type === 'idle') {
-                        loopAnimation = false; isAnimating = false; hasStarted = false;
-                    } else {
-                        loopAnimation = false; isAnimating = true; hasStarted = true; animCommand = type;
-                        if (type === 'bow') { bowActive = true; bowProgress = 0; }
-                    }
-                }
-                
-                function updateKata(delta) {
-                    if (!isKataRunning || kataComplete) return;
-                    kataActionTime += delta; kataTotalTime += delta;
-                    var action = kataAction; if (!action) return;
-                    var type = action[0]; var duration = action[1];
-                    if (type === 'idle') {
-                        if (kataActionTime >= duration) { kataActionIndex++; startNextKataAction(); }
-                        return;
-                    }
-                    if (type === 'walk' || type === 'run') {
-                        if (kataActionTime >= duration) {
-                            isAnimating = false; loopAnimation = false; resetRobot();
-                            kataActionIndex++; startNextKataAction();
-                        }
-                        return;
-                    }
-                    if (type === 'jump' || type === 'wave' || type === 'backflip') {
-                        if (!isAnimating && hasStarted) {
-                            hasStarted = false; kataActionIndex++; startNextKataAction();
-                        }
-                        return;
-                    }
-                    if (type === 'bow') {
-                        bowProgress += delta / duration;
-                        if (bowProgress >= 1) {
-                            bowProgress = 1;
-                            if (kataActionTime >= duration + 0.2) {
-                                bowActive = false; resetRobot();
-                                kataActionIndex++; startNextKataAction();
-                                return;
-                            }
-                        }
-                        var t = bowProgress;
-                        var ease = t < 0.5 ? 2*t*t : 1 - Math.pow(-2*t+2, 2)/2;
-                        robot.rotation.x = ease * 0.4;
-                        armGroupL.rotation.x = -0.5 * ease;
-                        armGroupR.rotation.x = -0.5 * ease;
-                        controls.target.set(0, 0.8 - ease * 0.3, 0);
-                        return;
-                    }
-                }
-                
-                if (kataSequence.length > 0) { startKata(); } else {
-                    var valid = ['walk','run','jump','wave','backflip'];
-                    if (valid.indexOf(animCommand) !== -1) { startCommand(animCommand); } else { resetRobot(); }
-                }
-                
-                function startCommand(cmd) {
-                    resetRobot(); animTime = 0; isAnimating = true; loopAnimation = false; hasStarted = true;
-                    switch(cmd) {
-                        case 'walk': loopAnimation = true; break;
-                        case 'run': loopAnimation = true; break;
-                        case 'jump': loopAnimation = false; break;
-                        case 'wave': loopAnimation = false; break;
-                        case 'backflip': loopAnimation = false; break;
-                        default: isAnimating = false; hasStarted = false; break;
-                    }
-                }
-                
-                var clock = new THREE.Clock();
-                function animate() {
-                    requestAnimationFrame(animate);
-                    var delta = clock.getDelta();
-                    var time = clock.getElapsedTime();
-                    
-                    if (isKataRunning) { updateKata(delta); } else {
-                        if (isAnimating && hasStarted) {
-                            animTime += delta;
-                            if (loopAnimation) {
-                                var speed = animCommand === 'walk' ? 1.0 : 2.0;
-                                walkCycle += delta * speed * 2.5;
-                                var swing = Math.sin(walkCycle) * 0.5;
-                                legGroupL.rotation.x = swing; legGroupR.rotation.x = -swing;
-                                armGroupL.rotation.x = -swing * 0.8; armGroupR.rotation.x = swing * 0.8;
-                                robot.position.y = Math.abs(Math.sin(walkCycle)) * 0.05;
-                            } else {
-                                var duration = 1.2;
-                                switch(animCommand) {
-                                    case 'jump': duration = 1.2; break;
-                                    case 'wave': duration = 2.0; break;
-                                    case 'backflip': duration = 1.5; break;
-                                }
-                                var progress = Math.min(animTime / duration, 1);
-                                if (progress >= 1) { isAnimating = false; resetRobot(); } else {
-                                    var t = progress < 0.5 ? 2*progress*progress : 1 - Math.pow(-2*progress+2, 2)/2;
-                                    switch(animCommand) {
-                                        case 'jump':
-                                            var jumpHeight = t < 0.5 ? t*2 : 2*(1-t);
-                                            robot.position.y = jumpHeight * 0.6;
-                                            controls.target.set(0, robot.position.y + 0.8, 0);
-                                            armGroupL.rotation.x = -1.2 * (1 - Math.abs(progress-0.5)*2);
-                                            armGroupR.rotation.x = -1.2 * (1 - Math.abs(progress-0.5)*2);
-                                            legGroupL.rotation.x = 0.3 * (1 - Math.abs(progress-0.5)*2);
-                                            legGroupR.rotation.x = 0.3 * (1 - Math.abs(progress-0.5)*2);
-                                            break;
-                                        case 'wave':
-                                            armGroupR.rotation.x = -1.2 + Math.sin(time * 6) * 0.5;
-                                            armGroupR.rotation.z = 0.5;
-                                            headGroup.rotation.y = 0.4;
-                                            break;
-                                        case 'backflip':
-                                            var angle = -t * Math.PI * 2;
-                                            robot.rotation.x = angle;
-                                            var jumpHeight = t < 0.5 ? t * 2 * 1.2 : 2 * (1 - t) * 1.2;
-                                            robot.position.y = jumpHeight;
-                                            controls.target.set(0, jumpHeight + 0.8, 0);
-                                            armGroupL.rotation.x = -0.7;
-                                            armGroupR.rotation.x = -0.7;
-                                            legGroupL.rotation.x = 0.4;
-                                            legGroupR.rotation.x = 0.4;
-                                            break;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    controls.update();
-                    renderer.render(scene, camera);
-                }
-                animate();
-                
-                window.addEventListener('resize', function() {
-                    var w = container.clientWidth;
-                    var h = container.clientHeight;
-                    renderer.setSize(w, h);
-                    camera.aspect = w / h;
-                    camera.updateProjectionMatrix();
-                });
-            }
-        </script>
-    </body>
-    </html>
-    """
-    html = html_template.replace('ROBOT_NAME', robot_name)
-    html = html.replace('COMMAND', command if command else 'Idle')
-    html = html.replace('ANIM_CMD', anim_cmd)
-    html = html.replace('MAIN_COLOR', str(main_color))
-    html = html.replace('ACCENT_COLOR', str(accent))
-    html = html.replace('KIMONO_COLOR', str(kimono_color))
-    html = html.replace('BELT_COLOR', str(belt_color))
-    html = html.replace('HEADBAND_COLOR', str(headband_color))
-    html = html.replace('IS_KATA', 'true' if is_kata else 'false')
-    html = html.replace('KATA_SEQUENCE', kata_sequence_json)
-    return html
-
-# ========== SESSION STATE ==========
-if 'robot_selected' not in st.session_state: st.session_state.robot_selected = "Red Titan"
-if 'command' not in st.session_state: st.session_state.command = ""
-if 'speak_text' not in st.session_state: st.session_state.speak_text = ""
-if 'last_action' not in st.session_state: st.session_state.last_action = "idle"
-if 'history' not in st.session_state: st.session_state.history = []
-if 'last_spoken_text' not in st.session_state: st.session_state.last_spoken_text = ""
-if 'last_spoken_audio' not in st.session_state: st.session_state.last_spoken_audio = None
-if 'last_spoken_timestamp' not in st.session_state: st.session_state.last_spoken_timestamp = 0
-if 'kata' not in st.session_state: st.session_state.kata = None
-
-# ========== HEADER ==========
-st.markdown("""
-<div style="text-align: center; padding: 20px 0; border-bottom: 2px solid #2a3a5a; margin-bottom: 30px;">
-    <h1 style="color: #00d4ff; font-size: 2.8rem; margin: 0; text-shadow: 0 0 30px rgba(0,212,255,0.2);">🤖 Robotic Control Center</h1>
-    <p style="color: #8899bb; font-size: 1.1rem;">Select a robot, command it, and watch it perform – built by GlobalInternet.py</p>
-    <span style="display: inline-block; background: #00ff64; color: #0a0a0f; padding: 4px 16px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; animation: pulse 2s infinite;">● LIVE SIMULATION</span>
-</div>
-""", unsafe_allow_html=True)
-
-# ========== SIDEBAR ==========
-with st.sidebar:
-    st.markdown("""
-    <div style="text-align: center; margin-bottom: 20px;">
-        <img src="https://raw.githubusercontent.com/Deslandes1/-Robotic-Control-Center-June-2026/main/Gesner%20Deslandes.png" 
-             class="profile-img">
-        <h3 class="profile-name">Gesner Deslandes</h3>
-        <p class="profile-title">Engineer-in-Chief, GlobalInternet.py</p>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    st.markdown("---")
-    
-    st.markdown("### 🤖 Robot Selection")
-    robot_names = list(ROBOTS.keys())
-    selected = st.selectbox("Select Robot", options=robot_names, index=robot_names.index(st.session_state.robot_selected), key="robot_select")
-    if selected != st.session_state.robot_selected:
-        st.session_state.robot_selected = selected
-        st.session_state.last_action = "idle"
-        st.session_state.kata = None
-        st.rerun()
-    
-    robot_info = ROBOTS[st.session_state.robot_selected]
-    st.markdown(f"""
-    <div class="robot-card">
-        <div class="robot-name" style="color: {robot_info['color']};">{st.session_state.robot_selected}</div>
-        <div class="robot-type">{robot_info['description']}</div>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    st.markdown("---")
-    
-    st.markdown("### 🥋 Kata Performance")
-    kata_names = list(KATAS.keys())
-    kata_selected = st.selectbox("Select Kata", options=["None"] + kata_names, 
-                                 index=0 if st.session_state.kata is None else kata_names.index(st.session_state.kata) + 1, key="kata_select")
-    if kata_selected == "None":
-        if st.session_state.kata is not None:
-            st.session_state.kata = None
-            st.session_state.command = ""
-            st.rerun()
-    else:
-        if st.session_state.kata != kata_selected:
-            st.session_state.kata = kata_selected
-            st.session_state.command = ""
-            st.rerun()
-    
-    if st.session_state.kata:
-        kata_info = KATAS[st.session_state.kata]
-        st.markdown(f"""
-        <div style="background: rgba(0,212,255,0.05); border: 1px solid #00d4ff; border-radius: 8px; padding: 8px 12px; margin-top: 5px;">
-            <span style="color: #8899bb; font-size: 0.8rem;">Active Kata</span><br>
-            <span style="color: #00d4ff; font-weight: 600;">{st.session_state.kata}</span><br>
-            <span style="color: #8899bb; font-size: 0.8rem;">Belt: {kata_info['belt_rank']}</span>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    st.markdown("---")
-    
-    st.markdown("### 🎮 Commands")
-    st.markdown("*Walk and Run loop continuously. Jump, Wave, Backflip play once.*")
-    action_input = st.text_input("Action (e.g., walk, run, jump, wave, backflip)", key="action_input", placeholder="e.g., backflip")
-    if st.button("▶️ Execute Action", use_container_width=True):
-        if action_input.strip():
-            st.session_state.kata = None
-            st.session_state.command = action_input.strip()
-            st.session_state.last_action = action_input.strip().lower()
-            st.rerun()
-        else:
-            st.warning("Please enter an action.")
-    
-    st.markdown("---")
-    st.markdown("### 🗣️ Speech")
-    speak_input = st.text_input("Speak (text)", key="speak_input", placeholder="e.g., Hello, I am your robot.")
-    if st.button("🔊 Make Robot Speak", use_container_width=True):
-        if speak_input.strip():
-            st.session_state.speak_text = speak_input.strip()
-            audio_bytes = generate_audio(speak_input.strip(), "en")
-            if audio_bytes:
-                st.session_state.last_spoken_text = speak_input.strip()
-                st.session_state.last_spoken_audio = audio_bytes
-                st.session_state.last_spoken_timestamp = time.time()
-                st.rerun()
-            else:
-                st.error("❌ Speech generation failed.")
-        else:
-            st.warning("Please enter text to speak.")
-    
-    st.markdown("---")
-    st.markdown("### 📞 Contact")
-    st.markdown("""
-    <div style="background: rgba(20,30,50,0.8); border: 1px solid #2a3a5a; border-radius: 8px; padding: 12px; font-size: 0.85rem; color: #8899bb;">
-        <strong style="color: #00d4ff;">Email:</strong> deslandes78@gmail.com<br>
-        <strong style="color: #00d4ff;">Phone:</strong> (509) 4738-5663<br>
-        <strong style="color: #00d4ff;">Website:</strong> <a href="https://globalinternetsitepy-abh7v6tnmskxxnuplrdcgk.streamlit.app/" style="color: #00d4ff;" target="_blank">globalinternet-py.com</a>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    st.markdown("---")
-    st.markdown("### 🔧 Status")
-    st.markdown(f"**Current Robot:** {st.session_state.robot_selected}")
-    st.markdown(f"**Last Action:** {st.session_state.last_action}")
-    if st.session_state.kata: st.markdown(f"**Kata:** {st.session_state.kata}")
-
-# ========== MAIN CONTENT ==========
-col_view, col_info = st.columns([3, 1])
-
-with col_view:
-    st.markdown("### 🖥️ Robot View")
-    viewer_html = get_robot_viewer_html(
-        st.session_state.robot_selected,
-        st.session_state.command if st.session_state.kata is None else "",
-        st.session_state.kata
-    )
-    st.components.v1.html(viewer_html, height=650, scrolling=False)
-
-with col_info:
-    st.markdown(f"""
-    <div class="status-panel">
-        <div class="label">Current Robot</div>
-        <div class="value">{st.session_state.robot_selected}</div>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    st.markdown(f"""
-    <div class="status-panel">
-        <div class="label">Last Action</div>
-        <div class="value">{st.session_state.last_action if st.session_state.last_action != "idle" else "—"}</div>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    if st.session_state.kata:
-        st.markdown(f"""
-        <div class="status-panel" style="border-color: #ffaa00;">
-            <div class="label">Kata</div>
-            <div class="value" style="color: #ffaa00;">{st.session_state.kata}</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    if st.session_state.last_spoken_audio and st.session_state.last_spoken_timestamp > 0:
-        st.audio(st.session_state.last_spoken_audio, format="audio/mp3", autoplay=True)
-        st.caption(f"🔊 Speaking: {st.session_state.last_spoken_text[:50]}...")
-        if st.button("🔁 Replay Voice"): st.rerun()
-    
-    with st.expander("📜 Backstage – Command History", expanded=False):
-        if st.session_state.history:
-            for cmd, status in reversed(st.session_state.history[-10:]):
-                st.markdown(f"""
-                <div style="background: rgba(0,212,255,0.05); border-left: 3px solid #00d4ff; padding: 5px 10px; margin: 5px 0; border-radius: 4px;">
-                    <span style="color: #00d4ff;">▶️</span> <span style="color: #ffffff;">{cmd}</span><br>
-                    <span style="color: #8899bb; font-size: 0.8rem;">{status}</span>
-                </div>
-                """, unsafe_allow_html=True)
-        else:
-            st.info("No commands yet. Send a command from the sidebar.")
-
-# ---------- Speak ----------
-if st.session_state.last_spoken_text and st.session_state.last_spoken_audio:
-    if not any("Speak:" in h[0] and st.session_state.last_spoken_text in h[0] for h in st.session_state.history):
-        st.session_state.history.append((f"Speak: {st.session_state.last_spoken_text}", "Speech played"))
-        if len(st.session_state.history) > 20:
-            st.session_state.history = st.session_state.history[-20:]
-
-# ========== FOOTER ==========
-st.markdown("""
-<div class="footer">
-    <p>© 2026 GlobalInternet.py Online Software Company</p>
-    <p>Built by <strong>Gesner Deslandes</strong> | (509) 4738-5663 | deslandes78@gmail.com</p>
-    <p style="font-size:0.8rem; color:#445566;">🤖 Simulated robot control – ready for real-world hardware integration.</p>
-</div>
-""", unsafe_allow_html=True)
+                var upperLeg
