@@ -3,7 +3,6 @@ import os
 import tempfile
 import time
 import base64
-import json
 
 try:
     from gtts import gTTS
@@ -130,7 +129,6 @@ def get_robot_viewer_html(robot_name, command=None):
     valid_commands = ['walk', 'run', 'jump', 'wave', 'backflip']
     anim_cmd = cmd_lower if cmd_lower in valid_commands else 'idle'
 
-    # Simplified HTML with importmap (works reliably)
     html_template = """
     <!DOCTYPE html>
     <html>
