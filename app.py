@@ -448,8 +448,13 @@ def get_robot_viewer_html(robot_name, command=None):
                                     headGroup.rotation.y = 0.4;
                                     break;
                                 case 'backflip':
-                                    const angle = t * Math.PI * 2;
+                                    // Negative rotation for backward flip, plus upward jump
+                                    const angle = -t * Math.PI * 2;
                                     robot.rotation.x = angle;
+                                    // Slight upward movement during flip
+                                    const jumpY = t < 0.5 ? t * 2 * 0.4 : 2 * (1 - t) * 0.4;
+                                    robot.position.y = jumpY;
+                                    // Tuck arms and legs
                                     armGroupL.rotation.x = -0.5;
                                     armGroupR.rotation.x = -0.5;
                                     legGroupL.rotation.x = 0.3;
@@ -625,7 +630,6 @@ with col_info:
     </div>
     """, unsafe_allow_html=True)
     
-    # Audio – no key, autoplay works
     if st.session_state.last_spoken_audio and st.session_state.last_spoken_timestamp > 0:
         st.audio(st.session_state.last_spoken_audio, format="audio/mp3", autoplay=True)
         st.caption(f"🔊 Speaking: {st.session_state.last_spoken_text[:50]}...")
