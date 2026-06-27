@@ -134,6 +134,9 @@ def get_robot_viewer_html(robot_name, command=None):
     valid_commands = ['walk', 'run', 'jump', 'wave', 'backflip']
     anim_cmd = cmd_lower if cmd_lower in valid_commands else 'idle'
 
+    # Unique timestamp to force re-render on every call
+    timestamp = int(time.time() * 1000)
+
     html_template = """
     <!DOCTYPE html>
     <html>
@@ -147,6 +150,7 @@ def get_robot_viewer_html(robot_name, command=None):
         </style>
     </head>
     <body>
+        <!-- TIMESTAMP_PLACEHOLDER -->
         <div id="container">
             <div id="loading">🤖 Loading robot...</div>
             <div id="info">🤖 ROBOT_NAME | Command: COMMAND</div>
@@ -448,7 +452,8 @@ def get_robot_viewer_html(robot_name, command=None):
                                         // Enhanced backflip: higher jump and full rotation
                                         var angle = -t * Math.PI * 2;
                                         robot.rotation.x = angle;
-                                        var jumpHeight = t < 0.5 ? t * 2 * 1.0 : 2 * (1 - t) * 1.0;
+                                        // Jump height: peak at 1.2 units
+                                        var jumpHeight = t < 0.5 ? t * 2 * 1.2 : 2 * (1 - t) * 1.2;
                                         robot.position.y = jumpHeight;
                                         controls.target.set(0, jumpHeight + 0.8, 0);
                                         // Tuck arms and legs more for acrobatic feel
@@ -485,6 +490,7 @@ def get_robot_viewer_html(robot_name, command=None):
     html = html.replace('ANIM_CMD', anim_cmd)
     html = html.replace('MAIN_COLOR', str(main_color))
     html = html.replace('ACCENT_COLOR', str(accent))
+    html = html.replace('<!-- TIMESTAMP_PLACEHOLDER -->', f'<!-- {timestamp} -->')
     return html
 
 # ========== SESSION STATE ==========
