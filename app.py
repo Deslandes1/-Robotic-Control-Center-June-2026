@@ -3,6 +3,7 @@ import os
 import tempfile
 import time
 import base64
+import json
 
 try:
     from gtts import gTTS
@@ -111,10 +112,19 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# ---- 5 Robot Models (simple) ----
+ROBOTS = {
+    "Red Titan": {"color": "#ff3333", "accent": "#ff6666", "description": "Heavy combat model with reinforced armor."},
+    "Blue Sentinel": {"color": "#3388ff", "accent": "#66aaff", "description": "Scout and reconnaissance unit."},
+    "Green Viper": {"color": "#33cc66", "accent": "#66ff99", "description": "Stealth and agility specialist."},
+    "Gold Phoenix": {"color": "#ffaa00", "accent": "#ffcc44", "description": "Command and leadership unit."},
+    "Silver Ghost": {"color": "#cccccc", "accent": "#eeeeee", "description": "Advanced prototype with unknown capabilities."}
+}
+
 # ---- 10 Katas definition ----
 KATAS = {
     "Taikyoku Shodan": {
-        "kimono": "#f0f0f0",   # white
+        "kimono": "#f0f0f0",
         "belt": "#ffffff",
         "headband": "#ff0000",
         "belt_rank": "White"
@@ -175,11 +185,7 @@ KATAS = {
     }
 }
 
-# Each kata has a sequence of actions: (type, duration)
-# types: idle, walk, run, jump, wave, backflip, bow
-# We'll build a sequence for each kata (all similar but different order to vary)
 def get_kata_sequence(kata_name):
-    # Common sequence: bow -> walk -> jump -> wave -> backflip -> walk -> bow
     base = [
         ("bow", 2.0),
         ("walk", 3.0),
@@ -189,10 +195,6 @@ def get_kata_sequence(kata_name):
         ("walk", 3.0),
         ("bow", 2.0),
     ]
-    # Add some variation based on kata index
-    # For simplicity, we'll just return a slightly different order for each
-    # but we can add extra actions like run or idle
-    # We'll define a few variations:
     variations = {
         "Taikyoku Shodan": [("idle", 1.0)] + base,
         "Heian Shodan": base + [("idle", 1.0)],
@@ -205,11 +207,7 @@ def get_kata_sequence(kata_name):
         "Kanku Dai": [("walk", 4.0), ("jump", 1.2), ("wave", 2.0), ("backflip", 1.5), ("walk", 4.0)],
         "Gojushiho": [("bow", 3.0), ("walk", 3.0), ("run", 3.0), ("jump", 1.2), ("backflip", 1.5), ("wave", 2.0), ("bow", 2.0)]
     }
-    seq = variations.get(kata_name, base)
-    # Ensure total duration ~20 seconds
-    total = sum(d for _, d in seq)
-    # We'll just return the sequence as is; the robot will perform it.
-    return seq
+    return variations.get(kata_name, base)
 
 def get_robot_viewer_html(robot_name, command=None, kata_name=None):
     color_map = {
@@ -222,28 +220,25 @@ def get_robot_viewer_html(robot_name, command=None, kata_name=None):
     main_color = color_map.get(robot_name, 0x3388ff)
     accent = main_color + 0x444444 if main_color < 0xcccccc else 0xeeeeee
 
+    # Determine if kata mode is active
+    is_kata = kata_name is not None
+    kata_info = KATAS.get(kata_name, None)
+    if is_kata and kata_info:
+        kimono_color = int(kata_info["kimono"].lstrip("#"), 16)
+        belt_color = int(kata_info["belt"].lstrip("#"), 16)
+        headband_color = int(kata_info["headband"].lstrip("#"), 16)
+    else:
+        # Simple mode: use robot color as kimono, belt and headband hidden
+        kimono_color = main_color
+        belt_color = main_color  # will be hidden
+        headband_color = main_color  # will be hidden
+
     cmd_lower = command.lower() if command else "idle"
     valid_commands = ['walk', 'run', 'jump', 'wave', 'backflip']
     anim_cmd = cmd_lower if cmd_lower in valid_commands else 'idle'
 
-    # Kata data
-    kata_info = KATAS.get(kata_name, None)
-    kata_colors = {
-        "kimono": 0xf0f0f0,
-        "belt": 0xffffff,
-        "headband": 0xff0000
-    }
-    if kata_info:
-        kata_colors["kimono"] = int(kata_info["kimono"].lstrip("#"), 16)
-        kata_colors["belt"] = int(kata_info["belt"].lstrip("#"), 16)
-        kata_colors["headband"] = int(kata_info["headband"].lstrip("#"), 16)
-
-    # Sequence for kata if selected
-    kata_sequence = []
-    if kata_name:
-        kata_sequence = get_kata_sequence(kata_name)
-    # Convert to JSON for JS
-    import json
+    # Kata sequence if any
+    kata_sequence = get_kata_sequence(kata_name) if is_kata else []
     kata_sequence_json = json.dumps(kata_sequence)
 
     timestamp = int(time.time() * 1000)
@@ -318,16 +313,17 @@ def get_robot_viewer_html(robot_name, command=None, kata_name=None):
                 gridHelper.position.y = -0.01;
                 scene.add(gridHelper);
                 
-                // ---- Robot Construction (primitives) ----
+                // ---- Robot Construction ----
                 var COLOR = MAIN_COLOR;
                 var ACCENT = ACCENT_COLOR;
                 var KIMONO = KIMONO_COLOR;
                 var BELT = BELT_COLOR;
                 var HEADBAND = HEADBAND_COLOR;
+                var IS_KATA = IS_KATA;
                 
                 var robot = new THREE.Group();
                 
-                // Torso (kimono)
+                // Torso
                 var torsoGeo = new THREE.BoxGeometry(0.9, 1.0, 0.6);
                 var torsoMat = new THREE.MeshStandardMaterial({ color: KIMONO, roughness: 0.3, metalness: 0.7 });
                 var torso = new THREE.Mesh(torsoGeo, torsoMat);
@@ -342,13 +338,15 @@ def get_robot_viewer_html(robot_name, command=None, kata_name=None):
                 chest.position.set(0, 1.0, 0.35);
                 robot.add(chest);
                 
-                // Belt (around waist)
-                var beltGeo = new THREE.CylinderGeometry(0.55, 0.55, 0.12, 16);
-                var beltMat = new THREE.MeshStandardMaterial({ color: BELT, roughness: 0.3, metalness: 0.2 });
-                var belt = new THREE.Mesh(beltGeo, beltMat);
-                belt.position.set(0, 0.45, 0);
-                belt.rotation.x = Math.PI/2;
-                robot.add(belt);
+                // Belt (only in kata mode)
+                if (IS_KATA) {
+                    var beltGeo = new THREE.CylinderGeometry(0.55, 0.55, 0.12, 16);
+                    var beltMat = new THREE.MeshStandardMaterial({ color: BELT, roughness: 0.3, metalness: 0.2 });
+                    var belt = new THREE.Mesh(beltGeo, beltMat);
+                    belt.position.set(0, 0.45, 0);
+                    belt.rotation.x = Math.PI/2;
+                    robot.add(belt);
+                }
                 
                 // Head
                 var headGroup = new THREE.Group();
@@ -366,13 +364,15 @@ def get_robot_viewer_html(robot_name, command=None, kata_name=None):
                 visor.position.set(0, 0.15, 0.25);
                 headGroup.add(visor);
                 
-                // Headband (torus)
-                var headbandGeo = new THREE.TorusGeometry(0.28, 0.04, 8, 16);
-                var headbandMat = new THREE.MeshStandardMaterial({ color: HEADBAND, roughness: 0.4, metalness: 0.3 });
-                var headband = new THREE.Mesh(headbandGeo, headbandMat);
-                headband.position.set(0, 0.15, 0);
-                headband.rotation.x = Math.PI/2;
-                headGroup.add(headband);
+                // Headband (only in kata mode)
+                if (IS_KATA) {
+                    var headbandGeo = new THREE.TorusGeometry(0.28, 0.04, 8, 16);
+                    var headbandMat = new THREE.MeshStandardMaterial({ color: HEADBAND, roughness: 0.4, metalness: 0.3 });
+                    var headband = new THREE.Mesh(headbandGeo, headbandMat);
+                    headband.position.set(0, 0.15, 0);
+                    headband.rotation.x = Math.PI/2;
+                    headGroup.add(headband);
+                }
                 
                 // Antenna
                 var antennaMat = new THREE.MeshStandardMaterial({ color: 0xffaa00, emissive: 0xff8800, emissiveIntensity: 0.3 });
@@ -514,7 +514,6 @@ def get_robot_viewer_html(robot_name, command=None, kata_name=None):
                     kataActionTime = 0;
                     kataTotalTime = 0;
                     kataComplete = false;
-                    // Start first action
                     startNextKataAction();
                 }
                 
@@ -528,20 +527,16 @@ def get_robot_viewer_html(robot_name, command=None, kata_name=None):
                     var action = kataSequence[kataActionIndex];
                     kataAction = action;
                     kataActionTime = 0;
-                    // For walk/run, we set loop flag; for others, one-shot
                     if (action[0] === 'walk' || action[0] === 'run') {
                         loopAnimation = true;
                         isAnimating = true;
                         hasStarted = true;
-                        // Set anim command for walk/run
                         animCommand = action[0];
                     } else if (action[0] === 'idle') {
                         loopAnimation = false;
                         isAnimating = false;
                         hasStarted = false;
-                        // idle: just wait
                     } else {
-                        // one-shot: jump, wave, backflip, bow
                         loopAnimation = false;
                         isAnimating = true;
                         hasStarted = true;
@@ -571,26 +566,18 @@ def get_robot_viewer_html(robot_name, command=None, kata_name=None):
                     }
                     
                     if (type === 'walk' || type === 'run') {
-                        // loop animation runs until duration
                         if (kataActionTime >= duration) {
-                            // stop animation
                             isAnimating = false;
                             loopAnimation = false;
                             resetRobot();
                             kataActionIndex++;
                             startNextKataAction();
                         }
-                        // else the animation loop will handle walk/run
                         return;
                     }
                     
                     if (type === 'jump' || type === 'wave' || type === 'backflip') {
-                        // one-shot: we rely on the animation loop to complete
-                        // but we need to know when it's done. We'll use progress from the main animation.
-                        // The main animation loop will set isAnimating false when done.
-                        // We check if isAnimating is false and hasStarted was true.
                         if (!isAnimating && hasStarted) {
-                            // action finished
                             hasStarted = false;
                             kataActionIndex++;
                             startNextKataAction();
@@ -599,12 +586,9 @@ def get_robot_viewer_html(robot_name, command=None, kata_name=None):
                     }
                     
                     if (type === 'bow') {
-                        // custom bow: interpolate torso rotation and arm positions
                         bowProgress += delta / duration;
                         if (bowProgress >= 1) {
                             bowProgress = 1;
-                            // hold for a moment then finish
-                            // we'll finish after a short hold
                             if (kataActionTime >= duration + 0.2) {
                                 bowActive = false;
                                 resetRobot();
@@ -613,11 +597,9 @@ def get_robot_viewer_html(robot_name, command=None, kata_name=None):
                                 return;
                             }
                         }
-                        // Apply bow pose: torso forward, arms down
                         var t = bowProgress;
-                        // ease in-out
                         var ease = t < 0.5 ? 2*t*t : 1 - Math.pow(-2*t+2, 2)/2;
-                        robot.rotation.x = ease * 0.4; // forward bend
+                        robot.rotation.x = ease * 0.4;
                         armGroupL.rotation.x = -0.5 * ease;
                         armGroupR.rotation.x = -0.5 * ease;
                         controls.target.set(0, 0.8 - ease * 0.3, 0);
@@ -626,11 +608,9 @@ def get_robot_viewer_html(robot_name, command=None, kata_name=None):
                 }
                 
                 // ---- Initialize ----
-                // Check if kata sequence is provided and start it
                 if (kataSequence.length > 0) {
                     startKata();
                 } else {
-                    // Normal command mode
                     var valid = ['walk','run','jump','wave','backflip'];
                     if (valid.indexOf(animCommand) !== -1) {
                         startCommand(animCommand);
@@ -676,20 +656,13 @@ def get_robot_viewer_html(robot_name, command=None, kata_name=None):
                     var delta = clock.getDelta();
                     var time = clock.getElapsedTime();
                     
-                    // If kata is running, update it
                     if (isKataRunning) {
                         updateKata(delta);
-                        // If kata just finished and we have no action, reset
-                        if (kataComplete) {
-                            // idle
-                        }
                     } else {
-                        // Normal command animation (if any)
                         if (isAnimating && hasStarted) {
                             animTime += delta;
                             
                             if (loopAnimation) {
-                                // Walk / Run – continuous
                                 var speed = animCommand === 'walk' ? 1.0 : 2.0;
                                 walkCycle += delta * speed * 2.5;
                                 var swing = Math.sin(walkCycle) * 0.5;
@@ -699,7 +672,6 @@ def get_robot_viewer_html(robot_name, command=None, kata_name=None):
                                 armGroupR.rotation.x = swing * 0.8;
                                 robot.position.y = Math.abs(Math.sin(walkCycle)) * 0.05;
                             } else {
-                                // One-shot animations
                                 var duration = 1.2;
                                 switch(animCommand) {
                                     case 'jump': duration = 1.2; break;
@@ -768,9 +740,10 @@ def get_robot_viewer_html(robot_name, command=None, kata_name=None):
     html = html.replace('ANIM_CMD', anim_cmd)
     html = html.replace('MAIN_COLOR', str(main_color))
     html = html.replace('ACCENT_COLOR', str(accent))
-    html = html.replace('KIMONO_COLOR', str(kata_colors["kimono"]))
-    html = html.replace('BELT_COLOR', str(kata_colors["belt"]))
-    html = html.replace('HEADBAND_COLOR', str(kata_colors["headband"]))
+    html = html.replace('KIMONO_COLOR', str(kimono_color))
+    html = html.replace('BELT_COLOR', str(belt_color))
+    html = html.replace('HEADBAND_COLOR', str(headband_color))
+    html = html.replace('IS_KATA', 'true' if is_kata else 'false')
     html = html.replace('KATA_SEQUENCE', kata_sequence_json)
     html = html.replace('TIMESTAMP_PLACEHOLDER', str(timestamp))
     return html
@@ -828,7 +801,6 @@ with st.sidebar:
     if selected != st.session_state.robot_selected:
         st.session_state.robot_selected = selected
         st.session_state.last_action = "idle"
-        # Clear kata if selected to avoid conflict
         st.session_state.kata = None
         st.rerun()
     
@@ -853,13 +825,12 @@ with st.sidebar:
     if kata_selected == "None":
         if st.session_state.kata is not None:
             st.session_state.kata = None
-            # Clear command to avoid conflict
             st.session_state.command = ""
             st.rerun()
     else:
         if st.session_state.kata != kata_selected:
             st.session_state.kata = kata_selected
-            st.session_state.command = ""  # clear any manual command
+            st.session_state.command = ""
             st.rerun()
     
     if st.session_state.kata:
@@ -879,7 +850,6 @@ with st.sidebar:
     action_input = st.text_input("Action (e.g., walk, run, jump, wave, backflip)", key="action_input", placeholder="e.g., backflip")
     if st.button("▶️ Execute Action", use_container_width=True):
         if action_input.strip():
-            # Clear kata if any
             st.session_state.kata = None
             st.session_state.command = action_input.strip()
             st.session_state.last_action = action_input.strip().lower()
