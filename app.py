@@ -359,6 +359,8 @@ def get_robot_viewer_html(robot_name, command=None):
                 headGroup.rotation.x = 0;
                 headGroup.rotation.y = 0;
                 walkCycle = 0;
+                // Reset camera target to default
+                controls.target.set(0, 0.8, 0);
             }
             
             function startCommand(cmd) {
@@ -437,6 +439,8 @@ def get_robot_viewer_html(robot_name, command=None):
                                 case 'jump':
                                     const jumpHeight = t < 0.5 ? t*2 : 2*(1-t);
                                     robot.position.y = jumpHeight * 0.6;
+                                    // Follow the robot with camera target
+                                    controls.target.set(0, robot.position.y + 0.8, 0);
                                     armGroupL.rotation.x = -1.2 * (1 - Math.abs(progress-0.5)*2);
                                     armGroupR.rotation.x = -1.2 * (1 - Math.abs(progress-0.5)*2);
                                     legGroupL.rotation.x = 0.3 * (1 - Math.abs(progress-0.5)*2);
@@ -454,6 +458,8 @@ def get_robot_viewer_html(robot_name, command=None):
                                     // Jump: rise in first half, fall in second
                                     const jumpHeight = t < 0.5 ? t * 2 * 0.6 : 2 * (1 - t) * 0.6;
                                     robot.position.y = jumpHeight;
+                                    // Make camera follow the robot's vertical movement
+                                    controls.target.set(0, jumpHeight + 0.8, 0);
                                     // Tuck arms and legs
                                     armGroupL.rotation.x = -0.5;
                                     armGroupR.rotation.x = -0.5;
