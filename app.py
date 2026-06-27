@@ -174,7 +174,7 @@ def get_robot_viewer_html(robot_name, command=None, kata_name=None):
     kata_sequence = get_kata_sequence(kata_name) if is_kata else []
     kata_sequence_json = json.dumps(kata_sequence)
 
-    # Use plain script tags for maximum reliability
+    # Plain script tags – no importmap
     html_template = """
     <!DOCTYPE html>
     <html>
@@ -197,13 +197,13 @@ def get_robot_viewer_html(robot_name, command=None, kata_name=None):
         <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
         
         <script>
-            // Hide loading after 0.8 seconds regardless
+            // Hide loading after 0.8 seconds anyway
             setTimeout(function() {
                 var l = document.getElementById('loading');
                 if (l) l.style.display = 'none';
             }, 800);
             
-            // Wait for THREE to be defined, then run
+            // Wait for THREE to be defined
             function checkThree() {
                 if (typeof THREE !== 'undefined') {
                     initScene();
