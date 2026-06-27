@@ -108,9 +108,6 @@ st.markdown("""
     .backstage {
         margin-top: 20px;
     }
-    .apply-btn {
-        margin-top: 10px;
-    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -137,7 +134,6 @@ def get_robot_viewer_html(robot_name, command=None):
     valid_commands = ['walk', 'run', 'jump', 'wave', 'backflip']
     anim_cmd = cmd_lower if cmd_lower in valid_commands else 'idle'
 
-    # Add a unique timestamp to force a fresh render and avoid cache issues
     timestamp = int(time.time() * 1000)
 
     html_template = """
@@ -481,13 +477,11 @@ def get_robot_viewer_html(robot_name, command=None):
     </body>
     </html>
     """
-    # Replace placeholders and inject timestamp
     html = html_template.replace('ROBOT_NAME', robot_name)
     html = html.replace('COMMAND', command if command else 'Idle')
     html = html.replace('ANIM_CMD', anim_cmd)
     html = html.replace('MAIN_COLOR', str(main_color))
     html = html.replace('ACCENT_COLOR', str(accent))
-    # Add a unique timestamp comment to force a fresh render
     html = html.replace('<!-- TIMESTAMP_PLACEHOLDER -->', f'<!-- {timestamp} -->')
     return html
 
@@ -614,7 +608,6 @@ col_view, col_info = st.columns([3, 1])
 with col_view:
     st.markdown("### 🖥️ Robot View")
     viewer_html = get_robot_viewer_html(st.session_state.robot_selected, st.session_state.command)
-    # No 'key' parameter – Streamlit will treat the HTML as a new component because the content changes
     st.components.v1.html(viewer_html, height=650, scrolling=False)
 
 with col_info:
@@ -632,9 +625,9 @@ with col_info:
     </div>
     """, unsafe_allow_html=True)
     
+    # Audio – no key, autoplay works
     if st.session_state.last_spoken_audio and st.session_state.last_spoken_timestamp > 0:
-        audio_key = f"audio_{st.session_state.last_spoken_timestamp}"
-        st.audio(st.session_state.last_spoken_audio, format="audio/mp3", autoplay=True, key=audio_key)
+        st.audio(st.session_state.last_spoken_audio, format="audio/mp3", autoplay=True)
         st.caption(f"🔊 Speaking: {st.session_state.last_spoken_text[:50]}...")
         if st.button("🔁 Replay Voice"):
             st.rerun()
