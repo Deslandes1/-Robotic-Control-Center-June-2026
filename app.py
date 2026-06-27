@@ -448,12 +448,12 @@ def get_robot_viewer_html(robot_name, command=None):
                                     headGroup.rotation.y = 0.4;
                                     break;
                                 case 'backflip':
-                                    // Negative rotation for backward flip, plus upward jump
+                                    // Backward rotation with a proper jump
                                     const angle = -t * Math.PI * 2;
                                     robot.rotation.x = angle;
-                                    // Slight upward movement during flip
-                                    const jumpY = t < 0.5 ? t * 2 * 0.4 : 2 * (1 - t) * 0.4;
-                                    robot.position.y = jumpY;
+                                    // Jump: rise in first half, fall in second
+                                    const jumpHeight = t < 0.5 ? t * 2 * 0.6 : 2 * (1 - t) * 0.6;
+                                    robot.position.y = jumpHeight;
                                     // Tuck arms and legs
                                     armGroupL.rotation.x = -0.5;
                                     armGroupR.rotation.x = -0.5;
