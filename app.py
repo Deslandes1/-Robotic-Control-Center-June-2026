@@ -186,7 +186,6 @@ KATAS = {
 }
 
 def get_kata_sequence(kata_name):
-    """Return a list of [action, duration] for each kata (as lists for JSON)"""
     base = [
         ["bow", 2.0],
         ["walk", 3.0],
@@ -236,12 +235,12 @@ def get_robot_viewer_html(robot_name, command=None, kata_name=None):
     valid_commands = ['walk', 'run', 'jump', 'wave', 'backflip']
     anim_cmd = cmd_lower if cmd_lower in valid_commands else 'idle'
 
-    # Get sequence for kata (list of lists)
     kata_sequence = get_kata_sequence(kata_name) if is_kata else []
     kata_sequence_json = json.dumps(kata_sequence)
 
     timestamp = int(time.time() * 1000)
 
+    # Use faster CDN and simpler loading
     html_template = """
     <!DOCTYPE html>
     <html>
@@ -255,14 +254,14 @@ def get_robot_viewer_html(robot_name, command=None, kata_name=None):
         </style>
     </head>
     <body>
-        <!-- TIMESTAMP_PLACEHOLDER -->
         <div id="container">
             <div id="loading">🤖 Loading robot...</div>
             <div id="info">🤖 ROBOT_NAME | Command: COMMAND</div>
         </div>
         
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js?t=TIMESTAMP_PLACEHOLDER"></script>
-        <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js?t=TIMESTAMP_PLACEHOLDER"></script>
+        <!-- Fast CDN for Three.js -->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
         
         <script>
             (function() {
@@ -462,7 +461,7 @@ def get_robot_viewer_html(robot_name, command=None, kata_name=None):
                 
                 scene.add(robot);
                 
-                // Hide loading message
+                // Hide loading message immediately
                 loading.style.display = 'none';
                 
                 // ---- Animation State ----
@@ -744,7 +743,6 @@ def get_robot_viewer_html(robot_name, command=None, kata_name=None):
     html = html.replace('HEADBAND_COLOR', str(headband_color))
     html = html.replace('IS_KATA', 'true' if is_kata else 'false')
     html = html.replace('KATA_SEQUENCE', kata_sequence_json)
-    html = html.replace('TIMESTAMP_PLACEHOLDER', str(timestamp))
     return html
 
 # ========== SESSION STATE ==========
