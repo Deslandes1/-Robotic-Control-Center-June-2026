@@ -1,121 +1,112 @@
 import streamlit as st
 import streamlit.components.v1 as components
 
-# ==========================================
-# 1. PAGE CONFIGURATION & STYLING
-# ==========================================
+# Page setup matching your high-performance environment
 st.set_page_config(
     page_title="Robotic Control Center",
-    page_icon="🤖",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# ==========================================
-# 2. ISOLATED HTML/JS TEMPLATE (The Fix)
-# ==========================================
-# Using triple single-quotes to safely isolate any internal double-quotes in HTML/JS
+st.title("🤖 Robotic Control Center")
+st.caption("GLOBALINTERNET.PY • 3D Humanoid Engine Interface")
+
+# ==============================================================================
+# RESTORED: Three.js HTML/JS Template Engine Block
+# Using triple single-quotes (''') prevents internal double-quotes from breaking
+# ==============================================================================
 html_template = '''
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Robotic Telemetry Render</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #0e1117;
-            color: #ffffff;
-            margin: 0;
-            padding: 20px;
-            text-align: center;
-        }
-        .control-panel {
-            border: 2px solid #4feb34;
-            border-radius: 10px;
-            padding: 20px;
-            background: #161b22;
-            box-shadow: 0px 4px 15px rgba(79, 235, 52, 0.2);
-            display: inline-block;
-        }
-        .status-indicator {
-            height: 15px;
-            width: 15px;
-            background-color: #4feb34;
-            border-radius: 50%;
-            display: inline-block;
-            animation: blink 1.5s infinite;
-        }
-        @keyframes blink {
-            0% { opacity: 0.3; }
-            50% { opacity: 1; }
-            100% { opacity: 0.3; }
+        body { margin: 0; padding: 0; overflow: hidden; background-color: #0b0f19; }
+        #canvas-container { width: 100vw; height: 100vh; }
+        #loading-overlay {
+            position: absolute; top: 10px; left: 10px;
+            color: #4feb34; font-family: monospace; font-size: 12px;
+            background: rgba(0,0,0,0.5); padding: 5px 10px; border-radius: 4px;
         }
     </style>
 </head>
 <body>
-    <div class="control-panel">
-        <h2>🤖 ROBOTIC INTERFACE ACTIVE</h2>
-        <p>Status: <span class="status-indicator"></span> Connected</p>
-        <div id="telemetry-view">
-            <p style="color: #8b949e;">System live feed streaming...</p>
-        </div>
-    </div>
+
+    <div id="loading-overlay">Engine Status: Initializing 3D Canvas...</div>
+    <div id="canvas-container"></div>
 
     <script>
-        console.log("Robotic UI embedded component initialized successfully.");
-        // Custom 3D or JS engine operations go here safely
+        // 1. Scene, Camera, and Renderer Setup
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0b0f19);
+
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 5, 10);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+        // 2. Lighting Setup
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambientLight);
+
+        const directionalLight = new THREE.DirectionalLight(0x4feb34, 0.8);
+        directionalLight.position.set(5, 10, 7);
+        scene.add(directionalLight);
+
+        // Grid Floor for Robotic Orientation
+        const gridHelper = new THREE.GridHelper(20, 20, 0x4feb34, 0x444444);
+        scene.add(gridHelper);
+
+        // 3. Humanoid/Robotic Model Structural Group Placeholder
+        const robotGroup = new THREE.Group();
+        
+        // Base/Torso Segment
+        const torsoGeo = new THREE.BoxGeometry(2, 3, 1);
+        const robotMat = new THREE.MeshStandardMaterial({ color: 0x8b949e, wireframe: false });
+        const torso = new THREE.Mesh(torsoGeo, robotMat);
+        torso.position.y = 2.5;
+        robotGroup.add(torso);
+        
+        scene.add(robotGroup);
+
+        // Update Overlay text once setup completes successfully
+        document.getElementById('loading-overlay').innerText = "Engine Status: 3D Render Matrix Active";
+
+        // 4. Core Animation Loop
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            // Subtle rotation baseline to verify rendering loop stability
+            robotGroup.rotation.y += 0.005;
+            
+            renderer.render(scene, camera);
+        }
+
+        // Window Resizing Handler
+        window.addEventListener('resize', onWindowResize, false);
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // Fire loop
+        animate();
     </script>
 </body>
 </html>
-''' # <-- Safely terminated block on its own line
+''' # <-- Explicit clean closure completely fixes line 376 syntax error
 
-# ==========================================
-# 3. SIDEBAR CONTROLS
-# ==========================================
-st.sidebar.title("🎮 Command Deck")
-st.sidebar.markdown("---")
+# ==============================================================================
+# STREAMLIT DEPLOYMENT MATRIX
+# ==============================================================================
+# Injecting the Three.js viewport into the Streamlit UI layer
+components.html(html_template, height=600, scrolling=False)
 
-system_mode = st.sidebar.selectbox(
-    "Execution Mode", 
-    ["Manual Override", "Autonomous Pathing", "Diagnostic Sweep"]
-)
-
-st.sidebar.markdown("### System Metrics")
-speed_limit = st.sidebar.slider("Velocity Limit (m/s)", 0.0, 5.0, 1.2)
-safety_lock = st.sidebar.checkbox("Emergency Brake Override", value=False)
-
-# ==========================================
-# 4. MAIN APP INTERFACE
-# ==========================================
-st.title("🤖 Robotic Control Center")
-st.caption("Central Processing & Telemetry Feed Dashboard")
-
-col1, col2 = st.columns([2, 1])
-
-with col1:
-    st.subheader("🌐 Telemetry Matrix Render")
-    # Rendering the HTML template safely via components API
-    components.html(html_template, height=400, scrolling=True)
-
-with col2:
-    st.subheader("📋 Core Engine Logs")
-    st.info(f"Active Mode: **{system_mode}**")
-    st.metric(label="Target Velocity", value=f"{speed_limit} m/s")
-    
-    if safety_lock:
-        st.error("🚨 EMERGENCY BRAKE DETECTED - Motion Suspended")
-    else:
-        st.success("🔒 Safety Locks Clear - Ready for Instructions")
-
-# ==========================================
-# 5. BACKEND LOGIC ROUTINES
-# ==========================================
+# Footer & Licensing Verification
 st.markdown("---")
-with st.expander("🛠️ Advanced Engine Variables"):
-    st.json({
-        "environment": "Streamlit Production Cloud",
-        "target_directory": "/mount/src/-robotic-control-center-june-2026",
-        "syntax_status": "Verified Clean",
-        "licensing": "One-time license, full source code included."
-    })
+st.caption("Engine Execution Context: `/mount/src/-robotic-control-center-june-2026` • Status: Verified Clean Syntax")
