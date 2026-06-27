@@ -488,7 +488,7 @@ def get_robot_viewer_html(robot_name, command=None):
 if 'robot_selected' not in st.session_state:
     st.session_state.robot_selected = "Red Titan"
 if 'temp_robot' not in st.session_state:
-    st.session_state.temp_robot = "Red Titan"  # Temporary selection
+    st.session_state.temp_robot = "Red Titan"
 if 'command' not in st.session_state:
     st.session_state.command = ""
 if 'speak_text' not in st.session_state:
@@ -501,6 +501,8 @@ if 'last_spoken_text' not in st.session_state:
     st.session_state.last_spoken_text = ""
 if 'last_spoken_audio' not in st.session_state:
     st.session_state.last_spoken_audio = None
+if 'last_spoken_timestamp' not in st.session_state:
+    st.session_state.last_spoken_timestamp = 0
 
 # ========== HEADER ==========
 st.markdown("""
@@ -525,25 +527,21 @@ with st.sidebar:
     st.markdown("---")
     
     st.markdown("### 🤖 Robot Selection")
-    # Use a temporary variable that does NOT trigger rerun
     temp_robot = st.selectbox(
         "Select Robot",
         options=list(ROBOTS.keys()),
         index=list(ROBOTS.keys()).index(st.session_state.temp_robot),
         key="temp_robot_select"
     )
-    # Update temp_robot in session state without rerun
     if temp_robot != st.session_state.temp_robot:
         st.session_state.temp_robot = temp_robot
     
-    # Apply button – updates the actual robot and triggers rerun (but user controls when)
     if st.button("✅ Apply Robot", use_container_width=True):
         if st.session_state.temp_robot != st.session_state.robot_selected:
             st.session_state.robot_selected = st.session_state.temp_robot
             st.session_state.last_action = "idle"
             st.rerun()
     
-    # Show current active robot
     st.markdown(f"""
     <div style="background: rgba(0,212,255,0.05); border: 1px solid #00d4ff; border-radius: 8px; padding: 8px 12px; text-align: center; margin-top: 5px;">
         <span style="color: #8899bb; font-size: 0.8rem;">Active Robot</span><br>
@@ -577,11 +575,11 @@ with st.sidebar:
     if st.button("🔊 Make Robot Speak", use_container_width=True):
         if speak_input.strip():
             st.session_state.speak_text = speak_input.strip()
-            # Generate audio and store
             audio_bytes = generate_audio(speak_input.strip(), "en")
             if audio_bytes:
                 st.session_state.last_spoken_text = speak_input.strip()
                 st.session_state.last_spoken_audio = audio_bytes
+                st.session_state.last_spoken_timestamp = time.time()
                 st.rerun()
             else:
                 st.error("❌ Speech generation failed.")
@@ -612,7 +610,6 @@ with col_view:
     st.components.v1.html(viewer_html, height=650, scrolling=False)
 
 with col_info:
-    # Minimal status panel
     st.markdown(f"""
     <div class="status-panel">
         <div class="label">Current Robot</div>
@@ -627,16 +624,15 @@ with col_info:
     </div>
     """, unsafe_allow_html=True)
     
-    # Play stored audio if available (auto-play after rerun)
-    if st.session_state.last_spoken_audio and st.session_state.last_spoken_text:
-        # Use st.audio with autoplay (browser may block, but we try)
-        st.audio(st.session_state.last_spoken_audio, format="audio/mp3", autoplay=True)
+    # Display audio with unique key based on timestamp
+    if st.session_state.last_spoken_audio and st.session_state.last_spoken_timestamp > 0:
+        audio_key = f"audio_{st.session_state.last_spoken_timestamp}"
+        st.audio(st.session_state.last_spoken_audio, format="audio/mp3", autoplay=True, key=audio_key)
         st.caption(f"🔊 Speaking: {st.session_state.last_spoken_text[:50]}...")
-        # Add a button to replay manually if autoplay is blocked
         if st.button("🔁 Replay Voice"):
-            st.audio(st.session_state.last_spoken_audio, format="audio/mp3", autoplay=True)
+            # Replay by re‑rendering with same key, but we can just re-run
+            st.rerun()
     
-    # Backstage: Command History (collapsible)
     with st.expander("📜 Backstage – Command History", expanded=False):
         if st.session_state.history:
             for cmd, status in reversed(st.session_state.history[-10:]):
@@ -650,15 +646,12 @@ with col_info:
             st.info("No commands yet. Send a command from the sidebar.")
 
 # ---------- Speak ----------
-# The speech is now handled above, but we also need to add to history when spoken
-if st.session_state.speak_text and st.session_state.last_spoken_audio:
-    # Add to history if not already added (avoid duplicates)
-    if not any("Speak:" in h[0] and st.session_state.speak_text in h[0] for h in st.session_state.history):
-        st.session_state.history.append((f"Speak: {st.session_state.speak_text}", "Speech played"))
+# Add speech to history if new speech was generated
+if st.session_state.last_spoken_text and st.session_state.last_spoken_audio:
+    if not any("Speak:" in h[0] and st.session_state.last_spoken_text in h[0] for h in st.session_state.history):
+        st.session_state.history.append((f"Speak: {st.session_state.last_spoken_text}", "Speech played"))
         if len(st.session_state.history) > 20:
             st.session_state.history = st.session_state.history[-20:]
-    # Clear speak_text to avoid re-adding on next rerun
-    st.session_state.speak_text = ""
 
 # ========== FOOTER ==========
 st.markdown("""
