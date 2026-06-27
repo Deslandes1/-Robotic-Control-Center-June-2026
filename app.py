@@ -238,9 +238,7 @@ def get_robot_viewer_html(robot_name, command=None, kata_name=None):
     kata_sequence = get_kata_sequence(kata_name) if is_kata else []
     kata_sequence_json = json.dumps(kata_sequence)
 
-    timestamp = int(time.time() * 1000)
-
-    # Use faster CDN and simpler loading
+    # Use fast CDN and add timeout to hide loading
     html_template = """
     <!DOCTYPE html>
     <html>
@@ -259,11 +257,16 @@ def get_robot_viewer_html(robot_name, command=None, kata_name=None):
             <div id="info">🤖 ROBOT_NAME | Command: COMMAND</div>
         </div>
         
-        <!-- Fast CDN for Three.js -->
         <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
         
         <script>
+            // Force hide loading after 1.5 seconds even if CDN is slow
+            setTimeout(function() {
+                var loading = document.getElementById('loading');
+                if (loading) loading.style.display = 'none';
+            }, 1500);
+            
             (function() {
                 var container = document.getElementById('container');
                 var loading = document.getElementById('loading');
@@ -461,8 +464,8 @@ def get_robot_viewer_html(robot_name, command=None, kata_name=None):
                 
                 scene.add(robot);
                 
-                // Hide loading message immediately
-                loading.style.display = 'none';
+                // Hide loading immediately after robot is built
+                if (loading) loading.style.display = 'none';
                 
                 // ---- Animation State ----
                 var animCommand = 'ANIM_CMD';
