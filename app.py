@@ -65,6 +65,28 @@ st.markdown("""
         border-radius: 8px !important;
         font-size: 1rem !important;
     }
+    .profile-img {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 2px solid #00d4ff;
+        display: block;
+        margin: 0 auto 8px auto;
+    }
+    .profile-name {
+        color: #ffffff;
+        text-align: center;
+        margin-top: 8px;
+        margin-bottom: 0;
+        font-size: 1.2rem;
+    }
+    .profile-title {
+        color: #8899bb;
+        text-align: center;
+        font-size: 0.9rem;
+        margin-top: 0;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -461,6 +483,18 @@ st.markdown("""
 
 # ========== SIDEBAR ==========
 with st.sidebar:
+    # --- Profile Image and Name ---
+    st.markdown("""
+    <div style="text-align: center; margin-bottom: 20px;">
+        <img src="https://raw.githubusercontent.com/Deslandes1/-Robotic-Control-Center-June-2026/main/Gesner%20Deslandes.png" 
+             class="profile-img">
+        <h3 class="profile-name">Gesner Deslandes</h3>
+        <p class="profile-title">Engineer-in-Chief, GlobalInternet.py</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("---")
+    
     st.markdown("### 🤖 Robot Selection")
     robot_names = list(ROBOTS.keys())
     selected = st.selectbox("Select Robot", robot_names, index=robot_names.index(st.session_state.robot_selected))
@@ -520,7 +554,6 @@ col_view, col_info = st.columns([3, 1])
 with col_view:
     st.markdown("### 🖥️ Robot View")
     viewer_html = get_robot_viewer_html(st.session_state.robot_selected, st.session_state.command)
-    # No 'key' parameter – it's not supported by st.components.v1.html
     st.components.v1.html(viewer_html, height=650, scrolling=False)
 
 with col_info:
