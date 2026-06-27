@@ -153,7 +153,7 @@ ROBOTS = {
     }
 }
 
-# ========== 3D VIEWER HTML ==========
+# ========== 3D VIEWER HTML (fixed f-string issue) ==========
 def get_robot_viewer_html(robot_name, command=None):
     """
     Returns an HTML/JavaScript snippet that loads a 3D robot model
@@ -170,10 +170,6 @@ def get_robot_viewer_html(robot_name, command=None):
     robot_color = color_map.get(robot_name, 0x3388ff)
     
     # Determine animation to play based on command
-    # We'll map common actions to animation names (if available)
-    # For simplicity, we'll use a few known animations: "idle", "walk", "run", "jump", "wave"
-    # If command contains "backflip", we'll use "jump" as fallback, but we can simulate with a sequence.
-    # Since YBot model has idle, walk, run, jump, wave, we'll map:
     anim_map = {
         "idle": "idle",
         "walk": "walk",
@@ -190,8 +186,8 @@ def get_robot_viewer_html(robot_name, command=None):
                 anim = val
                 break
     
-    # We'll load the YBot model from three.js examples
-    html = f"""
+    # Use a string with placeholders, then replace to avoid f-string braces issues
+    html_template = """
     <!DOCTYPE html>
     <html>
     <head>
@@ -203,7 +199,7 @@ def get_robot_viewer_html(robot_name, command=None):
     </head>
     <body>
         <div id="container" style="width:100%;height:100%;"></div>
-        <div id="info">Robot: {robot_name} | Command: {command if command else 'Idle'}</div>
+        <div id="info">Robot: ROBOT_NAME | Command: COMMAND</div>
         <script type="importmap">
         {{
             "imports": {{
@@ -214,9 +210,9 @@ def get_robot_viewer_html(robot_name, command=None):
         </script>
         <script type="module">
             import * as THREE from 'three';
-            import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-            import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-            import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+            import {{ OrbitControls }} from 'three/addons/controls/OrbitControls.js';
+            import {{ GLTFLoader }} from 'three/addons/loaders/GLTFLoader.js';
+            import {{ DRACOLoader }} from 'three/addons/loaders/DRACOLoader.js';
 
             const container = document.getElementById('container');
             const scene = new THREE.Scene();
@@ -226,7 +222,7 @@ def get_robot_viewer_html(robot_name, command=None):
             camera.position.set(2, 1.5, 3);
             camera.lookAt(0, 0.5, 0);
 
-            const renderer = new THREE.WebGLRenderer({ antialias: true });
+            const renderer = new THREE.WebGLRenderer({{ antialias: true }});
             renderer.setSize(container.clientWidth, container.clientHeight);
             renderer.setPixelRatio(window.devicePixelRatio);
             renderer.shadowMap.enabled = true;
@@ -290,12 +286,12 @@ def get_robot_viewer_html(robot_name, command=None):
                         if (Array.isArray(child.material)) {{
                             child.material.forEach(mat => {{
                                 if (mat.color) {{
-                                    mat.color.setHex({robot_color});
+                                    mat.color.setHex(ROBOT_COLOR);
                                 }}
                             }});
                         }} else {{
                             if (child.material.color) {{
-                                child.material.color.setHex({robot_color});
+                                child.material.color.setHex(ROBOT_COLOR);
                             }}
                         }}
                     }}
@@ -317,9 +313,8 @@ def get_robot_viewer_html(robot_name, command=None):
                     }}
                 }}
                 // Apply command animation if any
-                const animName = '{anim}';
+                const animName = 'ANIM';
                 if (animName !== 'idle' && animActions[animName]) {{
-                    // Fade to new action
                     if (currentAction) {{
                         currentAction.fadeOut(0.5);
                     }}
@@ -367,6 +362,11 @@ def get_robot_viewer_html(robot_name, command=None):
     </body>
     </html>
     """
+    # Replace placeholders
+    html = html_template.replace('ROBOT_NAME', robot_name)
+    html = html.replace('COMMAND', command if command else 'Idle')
+    html = html.replace('ROBOT_COLOR', str(robot_color))
+    html = html.replace('ANIM', anim)
     return html
 
 # ========== SESSION STATE ==========
@@ -497,16 +497,12 @@ if st.session_state.speak_text:
         audio_bytes = generate_audio(st.session_state.speak_text, "en")
         if audio_bytes:
             st.audio(audio_bytes, format="audio/mp3")
-            # Add to history
             st.session_state.history.append((f"Speak: {st.session_state.speak_text}", "Speech generated"))
             st.success("✅ Speech played.")
         else:
             st.error("❌ Speech generation failed. Please ensure gTTS is installed.")
     # Clear after playing to avoid repeat
     st.session_state.speak_text = ""
-
-# ---------- Auto-refresh for animation loop (optional) ----------
-# The 3D viewer has its own animation loop, no need for Streamlit refresh.
 
 # ========== FOOTER ==========
 st.markdown("""
