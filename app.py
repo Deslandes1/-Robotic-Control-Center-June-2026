@@ -87,6 +87,28 @@ st.markdown("""
         font-size: 0.9rem;
         margin-top: 0;
     }
+    .status-panel {
+        background: rgba(20,30,50,0.5);
+        border: 1px solid #2a3a5a;
+        border-radius: 12px;
+        padding: 15px;
+        margin-bottom: 15px;
+        text-align: center;
+    }
+    .status-panel .label {
+        color: #8899bb;
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    .status-panel .value {
+        color: #00d4ff;
+        font-size: 1.2rem;
+        font-weight: 600;
+    }
+    .backstage {
+        margin-top: 20px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -483,7 +505,6 @@ st.markdown("""
 
 # ========== SIDEBAR ==========
 with st.sidebar:
-    # --- Profile Image and Name ---
     st.markdown("""
     <div style="text-align: center; margin-bottom: 20px;">
         <img src="https://raw.githubusercontent.com/Deslandes1/-Robotic-Control-Center-June-2026/main/Gesner%20Deslandes.png" 
@@ -557,22 +578,33 @@ with col_view:
     st.components.v1.html(viewer_html, height=650, scrolling=False)
 
 with col_info:
-    st.markdown("### 📊 Command History")
-    if st.session_state.command and st.session_state.command not in [h[0] for h in st.session_state.history]:
-        st.session_state.history.append((st.session_state.command, "Executed"))
-        if len(st.session_state.history) > 20:
-            st.session_state.history = st.session_state.history[-20:]
+    # Minimal status panel
+    st.markdown("""
+    <div class="status-panel">
+        <div class="label">Current Robot</div>
+        <div class="value">{} </div>
+    </div>
+    """.format(st.session_state.robot_selected), unsafe_allow_html=True)
     
-    if st.session_state.history:
-        for cmd, status in reversed(st.session_state.history[-10:]):
-            st.markdown(f"""
-            <div style="background: rgba(0,212,255,0.05); border-left: 3px solid #00d4ff; padding: 5px 10px; margin: 5px 0; border-radius: 4px;">
-                <span style="color: #00d4ff;">▶️</span> <span style="color: #ffffff;">{cmd}</span><br>
-                <span style="color: #8899bb; font-size: 0.8rem;">{status}</span>
-            </div>
-            """, unsafe_allow_html=True)
-    else:
-        st.info("No commands yet.")
+    st.markdown("""
+    <div class="status-panel">
+        <div class="label">Last Action</div>
+        <div class="value">{}</div>
+    </div>
+    """.format(st.session_state.last_action if st.session_state.last_action != "idle" else "—"), unsafe_allow_html=True)
+    
+    # Backstage: Command History (collapsible)
+    with st.expander("📜 Backstage – Command History", expanded=False):
+        if st.session_state.history:
+            for cmd, status in reversed(st.session_state.history[-10:]):
+                st.markdown(f"""
+                <div style="background: rgba(0,212,255,0.05); border-left: 3px solid #00d4ff; padding: 5px 10px; margin: 5px 0; border-radius: 4px;">
+                    <span style="color: #00d4ff;">▶️</span> <span style="color: #ffffff;">{cmd}</span><br>
+                    <span style="color: #8899bb; font-size: 0.8rem;">{status}</span>
+                </div>
+                """, unsafe_allow_html=True)
+        else:
+            st.info("No commands yet. Send a command from the sidebar.")
 
 # ---------- Speak ----------
 if st.session_state.speak_text:
