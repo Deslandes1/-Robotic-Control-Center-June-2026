@@ -87,7 +87,6 @@ def get_robot_viewer_html(robot_name, command=None):
     main_color = color_map.get(robot_name, 0x3388ff)
     accent = main_color + 0x444444 if main_color < 0xcccccc else 0xeeeeee
 
-    # Determine command and animation type
     cmd_lower = command.lower() if command else "idle"
     valid_commands = ['walk', 'run', 'jump', 'wave', 'backflip']
     anim_cmd = cmd_lower if cmd_lower in valid_commands else 'idle'
@@ -354,7 +353,6 @@ def get_robot_viewer_html(robot_name, command=None):
             
             // ---- Animation Loop ----
             const clock = new THREE.Clock();
-            let animDuration = 1.2; // will be overridden per command
             
             function animate() {
                 requestAnimationFrame(animate);
@@ -385,7 +383,6 @@ def get_robot_viewer_html(robot_name, command=None):
                         }
                         const progress = Math.min(animTime / duration, 1);
                         if (progress >= 1) {
-                            // End animation
                             isAnimating = false;
                             resetRobot();
                         } else {
@@ -400,7 +397,6 @@ def get_robot_viewer_html(robot_name, command=None):
                                     legGroupR.rotation.x = 0.3 * (1 - Math.abs(progress-0.5)*2);
                                     break;
                                 case 'wave':
-                                    // Raise right arm and wave
                                     armGroupR.rotation.x = -1.2 + Math.sin(time * 6) * 0.5;
                                     armGroupR.rotation.z = 0.5;
                                     headGroup.rotation.y = 0.4;
@@ -523,10 +519,9 @@ col_view, col_info = st.columns([3, 1])
 
 with col_view:
     st.markdown("### 🖥️ Robot View")
-    # Use a unique key based on command to force re‑mount
-    viewer_key = f"robot_viewer_{st.session_state.command}_{st.session_state.robot_selected}"
     viewer_html = get_robot_viewer_html(st.session_state.robot_selected, st.session_state.command)
-    st.components.v1.html(viewer_html, height=650, scrolling=False, key=viewer_key)
+    # No 'key' parameter – it's not supported by st.components.v1.html
+    st.components.v1.html(viewer_html, height=650, scrolling=False)
 
 with col_info:
     st.markdown("### 📊 Command History")
