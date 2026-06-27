@@ -186,26 +186,27 @@ KATAS = {
 }
 
 def get_kata_sequence(kata_name):
+    """Return a list of [action, duration] for each kata (as lists for JSON)"""
     base = [
-        ("bow", 2.0),
-        ("walk", 3.0),
-        ("jump", 1.2),
-        ("wave", 2.0),
-        ("backflip", 1.5),
-        ("walk", 3.0),
-        ("bow", 2.0),
+        ["bow", 2.0],
+        ["walk", 3.0],
+        ["jump", 1.2],
+        ["wave", 2.0],
+        ["backflip", 1.5],
+        ["walk", 3.0],
+        ["bow", 2.0],
     ]
     variations = {
-        "Taikyoku Shodan": [("idle", 1.0)] + base,
-        "Heian Shodan": base + [("idle", 1.0)],
-        "Heian Nidan": [("walk", 2.0), ("run", 2.0)] + base[2:],
-        "Heian Sandan": base[:3] + [("run", 2.0)] + base[3:],
-        "Heian Yondan": base[:4] + [("idle", 1.0)] + base[4:],
-        "Heian Godan": base[:2] + [("jump", 1.2), ("walk", 2.0)] + base[3:],
-        "Tekki Shodan": [("bow", 2.0), ("idle", 2.0)] + base[2:],
-        "Bassai Dai": base + [("idle", 2.0)],
-        "Kanku Dai": [("walk", 4.0), ("jump", 1.2), ("wave", 2.0), ("backflip", 1.5), ("walk", 4.0)],
-        "Gojushiho": [("bow", 3.0), ("walk", 3.0), ("run", 3.0), ("jump", 1.2), ("backflip", 1.5), ("wave", 2.0), ("bow", 2.0)]
+        "Taikyoku Shodan": [["idle", 1.0]] + base,
+        "Heian Shodan": base + [["idle", 1.0]],
+        "Heian Nidan": [["walk", 2.0], ["run", 2.0]] + base[2:],
+        "Heian Sandan": base[:3] + [["run", 2.0]] + base[3:],
+        "Heian Yondan": base[:4] + [["idle", 1.0]] + base[4:],
+        "Heian Godan": base[:2] + [["jump", 1.2], ["walk", 2.0]] + base[3:],
+        "Tekki Shodan": [["bow", 2.0], ["idle", 2.0]] + base[2:],
+        "Bassai Dai": base + [["idle", 2.0]],
+        "Kanku Dai": [["walk", 4.0], ["jump", 1.2], ["wave", 2.0], ["backflip", 1.5], ["walk", 4.0]],
+        "Gojushiho": [["bow", 3.0], ["walk", 3.0], ["run", 3.0], ["jump", 1.2], ["backflip", 1.5], ["wave", 2.0], ["bow", 2.0]]
     }
     return variations.get(kata_name, base)
 
@@ -220,7 +221,6 @@ def get_robot_viewer_html(robot_name, command=None, kata_name=None):
     main_color = color_map.get(robot_name, 0x3388ff)
     accent = main_color + 0x444444 if main_color < 0xcccccc else 0xeeeeee
 
-    # Determine if kata mode is active
     is_kata = kata_name is not None
     kata_info = KATAS.get(kata_name, None)
     if is_kata and kata_info:
@@ -228,16 +228,15 @@ def get_robot_viewer_html(robot_name, command=None, kata_name=None):
         belt_color = int(kata_info["belt"].lstrip("#"), 16)
         headband_color = int(kata_info["headband"].lstrip("#"), 16)
     else:
-        # Simple mode: use robot color as kimono, belt and headband hidden
         kimono_color = main_color
-        belt_color = main_color  # will be hidden
-        headband_color = main_color  # will be hidden
+        belt_color = main_color
+        headband_color = main_color
 
     cmd_lower = command.lower() if command else "idle"
     valid_commands = ['walk', 'run', 'jump', 'wave', 'backflip']
     anim_cmd = cmd_lower if cmd_lower in valid_commands else 'idle'
 
-    # Kata sequence if any
+    # Get sequence for kata (list of lists)
     kata_sequence = get_kata_sequence(kata_name) if is_kata else []
     kata_sequence_json = json.dumps(kata_sequence)
 
@@ -484,7 +483,6 @@ def get_robot_viewer_html(robot_name, command=None, kata_name=None):
                 var kataComplete = false;
                 var bowActive = false;
                 var bowProgress = 0;
-                var bowTarget = 0.5;
                 
                 function resetRobot() {
                     armGroupL.rotation.x = 0;
@@ -527,12 +525,13 @@ def get_robot_viewer_html(robot_name, command=None, kata_name=None):
                     var action = kataSequence[kataActionIndex];
                     kataAction = action;
                     kataActionTime = 0;
-                    if (action[0] === 'walk' || action[0] === 'run') {
+                    var type = action[0];
+                    if (type === 'walk' || type === 'run') {
                         loopAnimation = true;
                         isAnimating = true;
                         hasStarted = true;
-                        animCommand = action[0];
-                    } else if (action[0] === 'idle') {
+                        animCommand = type;
+                    } else if (type === 'idle') {
                         loopAnimation = false;
                         isAnimating = false;
                         hasStarted = false;
@@ -540,8 +539,8 @@ def get_robot_viewer_html(robot_name, command=None, kata_name=None):
                         loopAnimation = false;
                         isAnimating = true;
                         hasStarted = true;
-                        animCommand = action[0];
-                        if (action[0] === 'bow') {
+                        animCommand = type;
+                        if (type === 'bow') {
                             bowActive = true;
                             bowProgress = 0;
                         }
