@@ -77,7 +77,6 @@ ROBOTS = {
 }
 
 def get_robot_viewer_html(robot_name, command=None):
-    """Builds a Transformer-style robot with Three.js and animates it based on command."""
     color_map = {
         "Red Titan": 0xff3333,
         "Blue Sentinel": 0x3388ff,
@@ -86,10 +85,8 @@ def get_robot_viewer_html(robot_name, command=None):
         "Silver Ghost": 0xcccccc
     }
     main_color = color_map.get(robot_name, 0x3388ff)
-    # accent color: a lighter version
     accent = main_color + 0x444444 if main_color < 0xcccccc else 0xeeeeee
 
-    # HTML template with built-in robot and animation system
     html_template = """
     <!DOCTYPE html>
     <html>
@@ -167,7 +164,7 @@ def get_robot_viewer_html(robot_name, command=None):
             
             const robot = new THREE.Group();
             
-            // Body (torso) - angled box
+            // Body (torso)
             const torsoGeo = new THREE.BoxGeometry(0.9, 1.0, 0.6);
             const torsoMat = new THREE.MeshStandardMaterial({ color: COLOR, roughness: 0.3, metalness: 0.7 });
             const torso = new THREE.Mesh(torsoGeo, torsoMat);
@@ -175,14 +172,14 @@ def get_robot_viewer_html(robot_name, command=None):
             torso.castShadow = true;
             robot.add(torso);
             
-            // Chest detail (accent)
+            // Chest detail
             const chestGeo = new THREE.BoxGeometry(0.6, 0.3, 0.1);
             const chestMat = new THREE.MeshStandardMaterial({ color: ACCENT, roughness: 0.4, metalness: 0.8 });
             const chest = new THREE.Mesh(chestGeo, chestMat);
             chest.position.set(0, 1.0, 0.35);
             robot.add(chest);
             
-            // Head - angular helmet
+            // Head
             const headGroup = new THREE.Group();
             const headGeo = new THREE.BoxGeometry(0.5, 0.45, 0.45);
             const headMat = new THREE.MeshStandardMaterial({ color: 0xaaaaaa, roughness: 0.3, metalness: 0.5 });
@@ -191,7 +188,7 @@ def get_robot_viewer_html(robot_name, command=None):
             head.castShadow = true;
             headGroup.add(head);
             
-            // Visor (glowing)
+            // Visor
             const visorGeo = new THREE.BoxGeometry(0.35, 0.12, 0.05);
             const visorMat = new THREE.MeshStandardMaterial({ color: 0x00ddff, emissive: 0x00bbff, emissiveIntensity: 0.8 });
             const visor = new THREE.Mesh(visorGeo, visorMat);
@@ -219,83 +216,71 @@ def get_robot_viewer_html(robot_name, command=None):
             shoulderR.position.set(0.6, 1.2, 0);
             robot.add(shoulderR);
             
-            // Arms (upper and lower)
+            // Arms
             const armGroupL = new THREE.Group();
             const armGroupR = new THREE.Group();
             
             const upperArmMat = new THREE.MeshStandardMaterial({ color: COLOR, roughness: 0.3, metalness: 0.7 });
             const lowerArmMat = new THREE.MeshStandardMaterial({ color: ACCENT, roughness: 0.4, metalness: 0.6 });
             
-            // Left upper arm
+            // Left arm
             const upperL = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.5, 0.2), upperArmMat);
             upperL.position.y = -0.25;
             armGroupL.add(upperL);
-            // Left lower arm
             const lowerL = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.5, 0.18), lowerArmMat);
             lowerL.position.y = -0.6;
             armGroupL.add(lowerL);
-            // Left hand
             const handMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.8, roughness: 0.2 });
             const handL = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.15, 0.15), handMat);
             handL.position.y = -0.85;
             armGroupL.add(handL);
-            
             armGroupL.position.set(-0.6, 1.2, 0);
             robot.add(armGroupL);
             
-            // Right upper arm
+            // Right arm
             const upperR = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.5, 0.2), upperArmMat);
             upperR.position.y = -0.25;
             armGroupR.add(upperR);
-            // Right lower arm
             const lowerR = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.5, 0.18), lowerArmMat);
             lowerR.position.y = -0.6;
             armGroupR.add(lowerR);
-            // Right hand
             const handR = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.15, 0.15), handMat);
             handR.position.y = -0.85;
             armGroupR.add(handR);
-            
             armGroupR.position.set(0.6, 1.2, 0);
             robot.add(armGroupR);
             
-            // Legs (upper and lower)
+            // Legs
             const legGroupL = new THREE.Group();
             const legGroupR = new THREE.Group();
             
             const upperLegMat = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.5, metalness: 0.4 });
             const lowerLegMat = new THREE.MeshStandardMaterial({ color: 0x777777, roughness: 0.5, metalness: 0.3 });
             
-            // Left upper leg
+            // Left leg
             const upperLegL = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.45, 0.25), upperLegMat);
             upperLegL.position.y = -0.225;
             legGroupL.add(upperLegL);
-            // Left lower leg
             const lowerLegL = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.45, 0.22), lowerLegMat);
             lowerLegL.position.y = -0.55;
             legGroupL.add(lowerLegL);
-            // Left foot
             const footMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.6, metalness: 0.2 });
             const footL = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.1, 0.4), footMat);
             footL.position.set(0, -0.8, 0.05);
             legGroupL.add(footL);
-            
             legGroupL.position.set(-0.3, 0.4, 0);
             robot.add(legGroupL);
             
-            // Right upper leg
+            // Right leg
             const upperLegR = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.45, 0.25), upperLegMat);
             upperLegR.position.y = -0.225;
             legGroupR.add(upperLegR);
-            // Right lower leg
             const lowerLegR = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.45, 0.22), lowerLegMat);
             lowerLegR.position.y = -0.55;
             legGroupR.add(lowerLegR);
-            // Right foot
             const footR = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.1, 0.4), footMat);
             footR.position.set(0, -0.8, 0.05);
             legGroupR.add(footR);
-            
             legGroupR.position.set(0.3, 0.4, 0);
             robot.add(legGroupR);
             
@@ -305,20 +290,12 @@ def get_robot_viewer_html(robot_name, command=None):
             let animCommand = 'COMMAND_ANIM';
             let animTime = 0;
             let isAnimating = false;
-            let animDuration = 2.0; // default
-            let jumpHeight = 0;
+            let animDuration = 2.0;
             let walkCycle = 0;
             let backflipAngle = 0;
             let waveAngle = 0;
-            let originalPositions = {
-                armL: new THREE.Vector3(-0.6, 1.2, 0),
-                armR: new THREE.Vector3(0.6, 1.2, 0),
-                legL: new THREE.Vector3(-0.3, 0.4, 0),
-                legR: new THREE.Vector3(0.3, 0.4, 0)
-            };
             
             function resetRobot() {
-                // Reset all parts to default pose
                 armGroupL.rotation.x = 0;
                 armGroupL.rotation.z = 0;
                 armGroupR.rotation.x = 0;
@@ -334,7 +311,6 @@ def get_robot_viewer_html(robot_name, command=None):
                 headGroup.rotation.y = 0;
                 waveAngle = 0;
                 backflipAngle = 0;
-                jumpHeight = 0;
                 walkCycle = 0;
             }
             
@@ -343,21 +319,19 @@ def get_robot_viewer_html(robot_name, command=None):
                 animCommand = cmd;
                 animTime = 0;
                 isAnimating = true;
-                if (cmd === 'walk' || cmd === 'run') {
-                    animDuration = 3.0;
-                } else if (cmd === 'jump') {
-                    animDuration = 1.2;
-                } else if (cmd === 'wave') {
-                    animDuration = 2.0;
-                } else if (cmd === 'backflip') {
-                    animDuration = 1.5;
-                } else {
-                    isAnimating = false;
+                switch(cmd) {
+                    case 'walk': animDuration = 3.0; break;
+                    case 'run': animDuration = 2.0; break;
+                    case 'jump': animDuration = 1.2; break;
+                    case 'wave': animDuration = 2.0; break;
+                    case 'backflip': animDuration = 1.5; break;
+                    default: isAnimating = false; break;
                 }
             }
             
-            // If command is not 'idle', start animation
-            if (animCommand !== 'idle') {
+            // If command is valid, start animation
+            const validCommands = ['walk','run','jump','wave','backflip'];
+            if (validCommands.includes(animCommand)) {
                 startCommand(animCommand);
             }
             
@@ -372,8 +346,6 @@ def get_robot_viewer_html(robot_name, command=None):
                 if (isAnimating) {
                     animTime += delta;
                     const progress = Math.min(animTime / animDuration, 1);
-                    
-                    // Ease in-out
                     const t = progress < 0.5 ? 2*progress*progress : 1 - Math.pow(-2*progress+2, 2)/2;
                     
                     switch (animCommand) {
@@ -382,60 +354,37 @@ def get_robot_viewer_html(robot_name, command=None):
                             const speed = animCommand === 'walk' ? 1.0 : 2.0;
                             walkCycle += delta * speed * 2.5;
                             const swing = Math.sin(walkCycle) * 0.5;
-                            // Legs
                             legGroupL.rotation.x = swing;
                             legGroupR.rotation.x = -swing;
-                            // Arms (opposite)
                             armGroupL.rotation.x = -swing * 0.8;
                             armGroupR.rotation.x = swing * 0.8;
-                            // Slight body bob
                             robot.position.y = Math.abs(Math.sin(walkCycle)) * 0.05;
-                            if (progress >= 1) {
-                                isAnimating = false;
-                                resetRobot();
-                            }
+                            if (progress >= 1) { isAnimating = false; resetRobot(); }
                             break;
                         case 'jump':
-                            // Parabolic jump
-                            const jumpProgress = progress < 0.5 ? 2*progress : 2*(1-progress);
-                            robot.position.y = jumpProgress * 0.6;
-                            // Arms up
+                            const jumpProg = progress < 0.5 ? 2*progress : 2*(1-progress);
+                            robot.position.y = jumpProg * 0.6;
                             armGroupL.rotation.x = -1.2 * (1 - Math.abs(progress-0.5)*2);
                             armGroupR.rotation.x = -1.2 * (1 - Math.abs(progress-0.5)*2);
-                            // Legs tuck
                             legGroupL.rotation.x = 0.3 * (1 - Math.abs(progress-0.5)*2);
                             legGroupR.rotation.x = 0.3 * (1 - Math.abs(progress-0.5)*2);
-                            if (progress >= 1) {
-                                isAnimating = false;
-                                resetRobot();
-                            }
+                            if (progress >= 1) { isAnimating = false; resetRobot(); }
                             break;
                         case 'wave':
-                            // Right arm wave motion
                             waveAngle = Math.sin(time * 4) * 0.8;
                             armGroupR.rotation.x = -0.8 + waveAngle * 0.5;
                             armGroupR.rotation.z = 0.5;
-                            // Head looks at hand
                             headGroup.rotation.y = 0.4;
-                            if (progress >= 1) {
-                                isAnimating = false;
-                                resetRobot();
-                            }
+                            if (progress >= 1) { isAnimating = false; resetRobot(); }
                             break;
                         case 'backflip':
-                            // Rotate robot backwards
                             backflipAngle = t * Math.PI * 2;
                             robot.rotation.x = backflipAngle;
-                            // Arms tuck
                             armGroupL.rotation.x = -0.5;
                             armGroupR.rotation.x = -0.5;
-                            // Legs tuck
                             legGroupL.rotation.x = 0.3;
                             legGroupR.rotation.x = 0.3;
-                            if (progress >= 1) {
-                                isAnimating = false;
-                                resetRobot();
-                            }
+                            if (progress >= 1) { isAnimating = false; resetRobot(); }
                             break;
                         default:
                             isAnimating = false;
@@ -456,15 +405,10 @@ def get_robot_viewer_html(robot_name, command=None):
                 camera.aspect = w / h;
                 camera.updateProjectionMatrix();
             });
-            
-            // ---- Re-trigger animation when command changes (simple polling) ----
-            // We'll check a global variable set by the parent window if needed.
-            // For now, we use the initial command from the template.
         </script>
     </body>
     </html>
     """
-    # Replace placeholders
     html = html_template.replace('ROBOT_NAME', robot_name)
     html = html.replace('COMMAND', command if command else 'Idle')
     html = html.replace('COMMAND_ANIM', command.lower() if command else 'idle')
